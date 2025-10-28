@@ -1,0 +1,54 @@
+#!/bin/bash
+
+# Set path to the wallpaper directory
+wallpapers_dir=~/Bilder/wallpapers
+cd "$wallpapers_dir" || exit 1
+
+case "$1" in
+  --help|-h)
+    echo "walset - Wallpaper Management Tool"
+    echo ""
+    echo "USAGE:"
+    echo "  walset [OPTION|IMAGE-PATH]"
+    echo ""
+    echo "OPTIONS:"
+    echo "  random          Set a random wallpaper from the wallpaper directory"
+    echo "  -l              List all available wallpapers"
+    echo "  -h, --help      Display this help message"
+    echo "  <IMAGE-PATH>    Set a specific image as wallpaper"
+    echo ""
+    echo "DESCRIPTION:"
+    echo "  Sets wallpapers using images from '$wallpapers_dir'."
+    echo "  When called without arguments, a random wallpaper is selected."
+    echo "  Supports JPG, JPEG, and PNG image formats."
+    echo "  Uses 'matugen' for wallpaper management."
+    echo ""
+    exit 0
+    ;;
+  -l)
+    echo "Available wallpapers in '$wallpapers_dir':"
+    find . -type f \( -iname "*.jpg" -o -iname "*.png" -o -iname "*.jpeg" \) | sed 's|^\./||'
+    exit 0
+    ;;
+  random|"")
+    img=$(find . -type f \( -iname "*.jpg" -o -iname "*.png" -o -iname "*.jpeg" \) | shuf -n 1)
+    ;;
+  *)
+    img=$1
+    ;;
+esac
+
+if [ -z "$img" ]; then
+  echo "No images found in '$wallpapers_dir'."
+  exit 1
+fi
+
+if [ ! -f "$img" ]; then
+  echo "Image file '$img' not found."
+  exit 1
+fi
+
+# Set the selected image as the wallpaper
+matugen image "$img" &> /dev/null
+
+
