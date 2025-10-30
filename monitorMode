@@ -1,0 +1,22 @@
+#!/bin/bash
+
+case "$1" in
+mirror)
+    sed -i '0,/monitor=/! s/monitor=.*/monitor=, 1920x1080@60, 0x0,1,mirror,eDP-1/' ~/.config/hypr/hyprland.conf
+    echo "Monitor now mirrors main screen"
+    ;;
+extend)
+    sed -i '0,/monitor=/! s/monitor=.*/monitor=, preferred, auto, 1/' ~/.config/hypr/hyprland.conf
+    echo "Monitor now extends main screen"
+    ;;
+--help | -h)
+    echo ""
+    echo "Usage: monitorMode [mirror|extend]"
+    echo ""
+    echo "mirror: mirrors your main screen"
+    echo "extend: extends the main screen to the right"
+    ;;
+*)
+    echo "Unknown option. Use --help or -h for usage."
+    ;;
+esac
