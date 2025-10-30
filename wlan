@@ -11,6 +11,10 @@ read -p "Choose network number (or 0 to cancel): " choice
 
 if [ "$choice" -eq 0 ] 2>/dev/null; then
     exit 0
+elif [ "$choice" -eq 1 ] 2>/dev/null; then
+    echo ""
+    echo "That is the network you are already connected to, silly."
+    exit 0
 fi
 
 iwctl station $modul connect "${networks[$((choice -2))]}"
