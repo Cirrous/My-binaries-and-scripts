@@ -1,0 +1,16 @@
+#!/bin/bash
+
+modul="wlan0" #Set your Wlan module here
+# you can look up your Wlan module with the command: ip addr
+
+iwctl station $modul scan
+iwctl station $modul get-networks | awk 'NR < 5 {print; next} {lines[NR]=$0} END {for (i=5; i<NR; i++) printf "%6d\t%s\n", i-4, lines[i]; print lines[NR]}'
+mapfile -t networks < <(iwctl station $modul get-networks| awk 'NR >= 6 {sub(/^[[:space:]]+/, ""); sub(/  +.*/, ""); print $0}')
+echo ""
+read -p "Choose network number (or 0 to cancel): " choice
+
+if [ "$choice" -eq 0 ] 2>/dev/null; then
+    exit 0
+fi
+
+iwctl station $modul connect "${networks[$((choice -2))]}"
