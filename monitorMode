@@ -1,5 +1,9 @@
 #!/bin/bash
 
+#To set up this script right and for more information visit:
+#https://wiki.hypr.land/Configuring/Monitors/
+#Probably gonna improve this script someday, but it works for now :D
+
 case "$1" in
 mirror)
     sed -i '0,/monitor=/! s/monitor=.*/monitor=, 1920x1080@60, 0x0,1,mirror,eDP-1/' ~/.config/hypr/hyprland.conf
