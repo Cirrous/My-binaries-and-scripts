@@ -1,0 +1,2 @@
+#!/bin/bash
+$BROWSER --new-window https://www.youtube.com >/dev/null 2>&1
