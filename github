@@ -1,4 +1,4 @@
 #!/bin/bash
 $BROWSER --app=https://github.com >/dev/null 2>&1 &
-sleep 0.1
+sleep 0.2
 kill -9 $PPID
