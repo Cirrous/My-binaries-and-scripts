@@ -1,2 +1,2 @@
 #!/bin/bash
-$BROWSER --new-window https://mail.google.com >/dev/null 2>&1
+$BROWSER --app=https://mail.google.com >/dev/null 2>&1 && exit
