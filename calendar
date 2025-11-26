@@ -1,0 +1,4 @@
+#!/bin/bash
+$BROWSER --app=https://calendar.google.com/calendar/ >/dev/null 2>&1 &
+sleep 0.2
+kill -9 $PPID
