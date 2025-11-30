@@ -7,8 +7,17 @@
  # Timestamp for Screenrecord names
 TS=$(date +%Y%m%d_%H%M%S)
 
-if [ "$1" == "frame" ]; then
-    wf-recorder -g "$(slurp)" --audio -f "recording_$TS.mkv"
+PID=$(pgrep -x wf-recorder)
+
+if [ -n "$PID" ]; then
+    kill "$PID"
+    notify-send -t 3000 "Screen Recording" "stopped"
 else
-     wf-recorder --audio -f "recording_$TS.mkv"
- fi
+    if [ "$1" == "frame" ]; then
+        notify-send -t 1000 "Screen Recording" "started"
+        wf-recorder -g "$(slurp)" --audio -f "recording_$TS.mkv"
+        else
+        notify-send -t 1000 "Screen Recording" "started"
+        wf-recorder --audio -f "recording_$TS.mkv"
+    fi
+fi
