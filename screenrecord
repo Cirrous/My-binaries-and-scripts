@@ -1,0 +1,14 @@
+#!/bin/bash
+ 
+ #Set path to screenrecordings directory
+ rec_dir=~/Videos
+ cd "$rec_dir"
+
+ # Timestamp for Screenrecord names
+TS=$(date +%Y%m%d_%H%M%S)
+
+if [ "$1" == "frame" ]; then
+    wf-recorder -g "$(slurp)" --audio -f "recording_$TS.mkv"
+else
+     wf-recorder --audio -f "recording_$TS.mkv"
+ fi

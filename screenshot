@@ -1,0 +1,19 @@
+#!/bin/bash
+
+#Info: directory and timestamp is only for saving screenshots directly
+#When edditing a screenshot swappy uses its own config under .config/swappy/config
+
+# Set path to screenshots directory
+screenshot_dir="$HOME/Bilder/Screenshots"
+cd "$screenshot_dir"
+
+# Timestamp for Screenshot names
+TS=$(date +%Y%m%d_%H%M%S)
+
+if [ "$1" == "edit" ]; then
+    grim -g "$(slurp -w 0)" -| wl-copy 
+    wl-paste |swappy -f -
+else
+    grim -g "$(slurp -w 0)" screenshot_$TS.png | wl-copy
+fi
+
