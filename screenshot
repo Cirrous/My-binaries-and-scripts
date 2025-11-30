@@ -17,3 +17,4 @@ else
     grim -g "$(slurp -w 0)" screenshot_$TS.png | wl-copy
 fi
 
+kill -9 $PPID
