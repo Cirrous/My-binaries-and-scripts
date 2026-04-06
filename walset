@@ -1,11 +1,9 @@
 #!/bin/bash
 
 # Set path to the wallpaper directory
-wallpapers_dir=~/Bilder/wallpapers
-cd "$wallpapers_dir" || exit 1
+wallpapers_dir="$HOME/Bilder/wallpapers"
 
-case "$1" in
-  --help|-h)
+show_help() {
     echo "walset - Wallpaper Management Tool"
     echo ""
     echo "USAGE:"
@@ -17,38 +15,42 @@ case "$1" in
     echo "  -h, --help      Display this help message"
     echo "  <IMAGE-PATH>    Set a specific image as wallpaper"
     echo ""
-    echo "DESCRIPTION:"
-    echo "  Sets wallpapers using images from '$wallpapers_dir'."
-    echo "  When called without arguments, a random wallpaper is selected."
-    echo "  Supports JPG, JPEG, and PNG image formats."
-    echo "  Uses 'matugen' for wallpaper management."
-    echo ""
+}
+
+case "$1" in
+  --help|-h)
+    show_help
     exit 0
     ;;
   -l)
     echo "Available wallpapers in '$wallpapers_dir':"
-    find . -type f \( -iname "*.jpg" -o -iname "*.png" -o -iname "*.jpeg" \) | sed 's|^\./||'
+    find "$wallpapers_dir" -type f \( -iname "*.jpg" -o -iname "*.png" -o -iname "*.jpeg" \) -exec basename {} \;
     exit 0
     ;;
   random|"")
-    img=$(find . -type f \( -iname "*.jpg" -o -iname "*.png" -o -iname "*.jpeg" \) | shuf -n 1)
+    img=$(find "$wallpapers_dir" -type f \( -iname "*.jpg" -o -iname "*.png" -o -iname "*.jpeg" \) | shuf -n 1)
     ;;
   *)
-    img=$1
+
+    if [[ "$1" = /* ]]; then
+        img="$1"
+    else
+        img="$wallpapers_dir/$1"
+    fi
     ;;
 esac
 
+# Validierung
 if [ -z "$img" ]; then
-  echo "No images found in '$wallpapers_dir'."
+  echo "No images found."
   exit 1
 fi
 
 if [ ! -f "$img" ]; then
-  echo "Image file '$img' not found."
+  echo "Error: Image '$img' not found."
   exit 1
 fi
 
 # Set the selected image as the wallpaper
-matugen image "$img" &> /dev/null
-
-
+# See https://iniox.github.io/#matugen/configuration for config
+matugen image "$img" --source-color-index 0
