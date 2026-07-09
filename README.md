@@ -16,7 +16,7 @@ Most of these scripts feature a help menu. You can view usage instructions by op
 Add this line to your shell configuration (.bashrc or .zshrc)
 
 ```bash
-export BROWSER="firefox" # Or vivaldi, chromium etc.
+export BROWSER="vivaldi" # Or firefox, chromium etc.
 ```
 
 
