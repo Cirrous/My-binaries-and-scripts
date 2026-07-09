@@ -4,6 +4,7 @@
 
 Most of these scripts feature a help menu. You can view usage instructions by opening the script to read the comments or by running it with the -h or --help flags.
 
+- clearPacman - Searches for and deletes orphan packages *(Inspired by [bluemi](https://github.com/Bluemi/std_utils/tree/master/clear-pacman))*
 - importPlaylist - Downloads YouTube Music playlists 
 - monitorMode - When using Hyprland as the window manager this script decides whether to extend or mirror the main screen
 - screenrecord - Records the entire screen or a selected region with internal/microphone audio support.
