@@ -1,5 +1,6 @@
 #!/bin/bash
 
+# Target file for aliases
 libpath="$HOME/.local/etc/goto/gotolib"
 usage="Usage:\tgoto -n <id> <path>\n\tgoto -n <id>\n\tgoto <id>\n\tgoto -l\n\tgoto -w"
 
@@ -9,78 +10,92 @@ YELLOW='\033[1;33m'
 CYAN='\033[0;36m'
 NC='\033[0m'
 
+help() {
+  echo -e "${CYAN}--- goto: Quick Directory Navigation ---${NC}"
+  echo -e "This tool allows you to create shortcuts (aliases) for directories"
+  echo -e "and switch between them quickly.\n"
+  echo -e "${GREEN}Commands:${NC}"
+  echo -e "  goto <id>             Jump to the saved directory <id>."
+  echo -e "  goto -n <id> [path]   Save the current (or specified) directory as <id>."
+  echo -e "  goto -l               List all saved aliases."
+  echo -e "  goto -w               Open the configuration file in 'vi' for manual editing."
+  echo -e "  goto -h / --help      Display this help message.\n"
+}
+
 if [ ! -f "$libpath" ]; then
-	touch "$libpath"
+  touch "$libpath"
+fi
+
+if [ -z "$1" ] || [ "$1" == "-h" ] || [ "$1" == "--help" ]; then
+  help
+  return
 fi
 
 if [ -z "$1" ]; then
-	echo -e "$usage"
-	return
+  echo -e "$usage"
+  return
 fi
 
 if [ "$1" == "-l" ]; then
-	max_num_chars=0
-	while read LINE
-	do
-		keyword=${LINE%:*}
-		num_chars=${#keyword}
-		if [ "$max_num_chars" -lt "$num_chars" ]; then
-			max_num_chars=$num_chars
-		fi
-	done < $libpath
+  max_num_chars=0
+  while read LINE; do
+    keyword=${LINE%:*}
+    num_chars=${#keyword}
+    if [ "$max_num_chars" -lt "$num_chars" ]; then
+      max_num_chars=$num_chars
+    fi
+  done <$libpath
 
-	while read LINE
-	do
-		keyword=${LINE%:*}
-		num_chars=${#keyword}
-		num_padding=$[$max_num_chars - $num_chars]
-		printf ${GREEN}${keyword}${NC}
-		printf ' %.0s' $(seq 0 $num_padding)
-		printf "${YELLOW}- ${NC}"
-		dir=$(echo ${LINE#*:} | sed "s:^$HOME:~:")
-		printf ${CYAN}${dir}${NC}
-		echo
-	done < $libpath
-	return
+  while read LINE; do
+    keyword=${LINE%:*}
+    num_chars=${#keyword}
+    num_padding=$(($max_num_chars - $num_chars))
+    printf ${GREEN}${keyword}${NC}
+    printf ' %.0s' $(seq 0 $num_padding)
+    printf "${YELLOW}- ${NC}"
+    dir=$(echo ${LINE#*:} | sed "s:^$HOME:~:")
+    printf ${CYAN}${dir}${NC}
+    echo
+  done <$libpath
+  return
 fi
 
 if [ "$1" == "-w" ]; then
-	if [ -f $libpath ]; then
-		vi $libpath
-	else
-		echo "lib \"$libpath\" not found"
-	fi
-	return
+  if [ -f $libpath ]; then
+    vi $libpath
+  else
+    echo "lib \"$libpath\" not found"
+  fi
+  return
 fi
 
 if [ "$1" == "-c" ]; then
-	tmp=$(cat $libpath)
-	res=
-	for ok in $tmp
-	do
-		res="$res ${ok%%:*}"
-	done
-	complete -W "$res" goto
-	return
+  tmp=$(cat $libpath)
+  res=
+  for ok in $tmp; do
+    res="$res ${ok%%:*}"
+  done
+  complete -W "$res" goto
+  return
 fi
 
 if [ "$1" == "-n" ]; then
-	if [ -n "$2" ]; then
-		if [ -n "$3" ]; then # TODO missing: error if ID already defined
-			echo "$2:$3" >> "$libpath"
-		else
-			echo "$2:$PWD" >> "$libpath"
-		fi
-	else
-		echo $(basename "$PWD")":$PWD" >> "$libpath"
-	fi
+  if [ -n "$2" ]; then
+    if [ -n "$3" ]; then # TODO missing: error if ID already defined
+      echo "$2:$3" >>"$libpath"
+    else
+      echo "$2:$PWD" >>"$libpath"
+    fi
+  else
+    echo $(basename "$PWD")":$PWD" >>"$libpath"
+  fi
 else
-	id="$1"
-	line="$(grep "^$id:" $libpath)"
-	line=${line#*:}
-	if [ -n "$line" ]; then
-		cd "$line"
-	else
-		echo -e "${RED}id ${CYAN}$1${RED} not found${NC}"
-	fi
+  id="$1"
+  line="$(grep "^$id:" $libpath)"
+  line=${line#*:}
+  if [ -n "$line" ]; then
+    cd "$line"
+  else
+    echo -e "${RED}id ${CYAN}$1${RED} not found${NC}"
+  fi
 fi
