@@ -89,4 +89,4 @@ fi
 mkdir -p "$FOLDER"
 
 echo "Starting download to: $FOLDER"
-yt-dlp -f bestaudio --extract-audio --audio-format mp3 --audio-quality 0 --yes-playlist --download-archive "$FOLDER/.downloaded_songs.txt" -P "$FOLDER" -o "%(title)s.%(ext)s" "$URL"
+yt-dlp -f bestaudio --extract-audio --audio-format mp3 --audio-quality 0 --yes-playlist --download-archive "$FOLDER/.downloaded_songs.txt" -P "$FOLDER" -o '%(title)s.%(ext)s' "$URL"
