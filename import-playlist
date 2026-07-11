@@ -1,0 +1,69 @@
+#!/bin/bash
+
+# Base directory for playlist profiles
+LIB_DIR="$HOME/.local/etc/importPlaylist/"
+
+show_help() {
+  echo "A wrapper for yt-dlp to manage and download Youtube Music playlists."
+  echo ""
+  echo "Usage:"
+  echo "  $0 <ProfileName>                       Download using a saved profile"
+  echo "  $0 <URL> <TargetFolder>                Direct download without saving a profile"
+  echo "  $0 --add <Name> <URL> <TargetFolder>   Create/overwrite a playlist profile"
+  echo "  $0 -h, --help                          Show this help message"
+  echo ""
+  echo "Profiles are stored in: $LIB_DIR"
+  exit 0
+}
+
+if [ "$1" = "-h" ] || [ "$1" = "--help" ]; then
+  show_help
+fi
+
+mkdir -p "$LIB_DIR"
+
+if [ "$1" = "--add" ]; then
+  if [ -z "$2" ] || [ -z "$3" ] || [ -z "$4" ]; then
+    echo "Error: Incomplete arguments for creating a profile."
+    echo "Usage (to add): $0 --add <Name> <URL> <TargetFolder>"
+    exit 1
+  fi
+
+  NAME="$2"
+  URL="$3"
+  FOLDER="$4"
+  PROFILE_FILE="$LIB_DIR/$NAME"
+
+  echo "URL=\"$URL\"" >"$PROFILE_FILE"
+  echo "FOLDER=\"$FOLDER\"" >>"$PROFILE_FILE"
+
+  echo "Success: Profile '$NAME' has been created!"
+  echo "Saved at: $PROFILE_FILE"
+  exit 0
+fi
+
+if [ -z "$1" ]; then
+  echo "Error: No profile name or URL provided!"
+  echo "Usage (with profile): $0 <ProfileName>"
+  echo "Usage (direct):       $0 <URL> <TargetFolder>"
+  echo "Usage (to add):       $0 --add <Name> <URL> <TargetFolder>"
+  exit 1
+fi
+
+if [ -f "$LIB_DIR/$1" ]; then
+  source "$LIB_DIR/$1"
+  echo "Profile '$1' loaded..."
+else
+  if [ -z "$2" ]; then
+    echo "Error: Profile '$1' does not exist and no target folder was specified for a direct download."
+    echo "Use '$0 --help' for usage instructions."
+    exit 1
+  fi
+  URL="$1"
+  FOLDER="$2"
+fi
+
+mkdir -p "$FOLDER"
+
+echo "Starting download to: $FOLDER"
+yt-dlp -f bestaudio --extract-audio --audio-format mp3 --audio-quality 0 --yes-playlist --download-archive "$FOLDER/.downloaded_songs.txt" -P "$FOLDER" -o "%(title)s.%(ext)s" "$URL"
