@@ -13,6 +13,8 @@ Most of these scripts feature a help menu. You can view usage instructions by op
 - wlan - CLI Wi-Fi manager. Uses iwctl under the hood to scan for networks and connect to them.
 - yallah - Fast way to git add, commit and push to a repository
 
+- install-bin - Moves all of the scripts above into the users ./local/bin folder
+
 ## Webapps
 
 Add this line to your shell configuration (.bashrc or .zshrc)

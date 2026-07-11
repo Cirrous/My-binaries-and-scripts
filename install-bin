@@ -1,0 +1,41 @@
+#!/bin/bash
+
+# Target directory for local user binaries
+TARGET_DIR="$HOME/.local/bin"
+
+show_help() {
+  echo "Script Deployer - Links all executable scripts from the current directory to $TARGET_DIR"
+  echo ""
+  echo "Usage:"
+  echo "  $0             Link all scripts in the current directory (skipping itself)"
+  echo "  $0 -h, --help  Show this help message"
+  exit 0
+}
+
+if [ "$1" = "-h" ] || [ "$1" = "--help" ]; then
+  show_help
+fi
+
+mkdir -p "$TARGET_DIR"
+
+echo "Deploying scripts to $TARGET_DIR..."
+echo "--------------------------------------------------"
+
+SCRIPT_NAME=$(basename "$0")
+COPY_COUNT=0
+
+for file in *; do
+  if [ -f "$file" ] && [ -x "$file" ] && [ "$file" != "$SCRIPT_NAME" ]; then
+    cp -pf "$file" "$TARGET_DIR/$file"
+    echo "  Copied: $file -> $TARGET_DIR/$file"
+    ((COPY_COUNT++))
+  fi
+done
+
+echo "--------------------------------------------------"
+if [ "$COPY_COUNT" -eq 0 ]; then
+  echo "No executable scripts found in the current directory."
+  echo "Hint: Make sure your scripts are executable (chmod +x scriptname)."
+else
+  echo "Success: Successfully deployed $LINK_COUNT script(s)!"
+fi
