@@ -1,17 +1,18 @@
 #!/bin/bash
 
 # Base directory for playlist profiles
-LIB_DIR="$HOME/.local/etc/import-playlist/"
+LIB_DIR="$HOME/.local/etc/import-playlist"
+SCRIPT_NAME=$(basename "$0")
 
 show_help() {
   echo "A wrapper for yt-dlp to manage and download Youtube Music playlists."
   echo ""
   echo "Usage:"
-  echo "  $0 <ProfileName>                       Download using a saved profile"
-  echo "  $0 <URL> <TargetFolder>                Direct download without saving a profile"
-  echo "  $0 --add <Name> <URL> <TargetFolder>   Create/overwrite a playlist profile"
-  echo "  $0 -l, --list                          List all saved profiles"
-  echo "  $0 -h, --help                          Show this help message"
+  echo "  $SCRIPT_NAME <ProfileName>                       Download using a saved profile"
+  echo "  $SCRIPT_NAME <URL> <TargetFolder>                Direct download without saving a profile"
+  echo "  $SCRIPT_NAME --add <Name> <URL> <TargetFolder>   Create/overwrite a playlist profile"
+  echo "  $SCRIPT_NAME -l, --list                          List all saved profiles"
+  echo "  $SCRIPT_NAME -h, --help                          Show this help message"
   echo ""
   echo "Profiles are stored in: $LIB_DIR"
   exit 0
@@ -47,7 +48,7 @@ mkdir -p "$LIB_DIR"
 if [ "$1" = "--add" ]; then
   if [ -z "$2" ] || [ -z "$3" ] || [ -z "$4" ]; then
     echo "Error: Incomplete arguments for creating a profile."
-    echo "Usage (to add): $0 --add <Name> <URL> <TargetFolder>"
+    echo "Usage (to add profile): $SCRIPT_NAME --add <Name> <URL> <TargetFolder>"
     exit 1
   fi
 
@@ -66,9 +67,9 @@ fi
 
 if [ -z "$1" ]; then
   echo "Error: No profile name or URL provided!"
-  echo "Usage (with profile): $0 <ProfileName>"
-  echo "Usage (direct):       $0 <URL> <TargetFolder>"
-  echo "Usage (to add):       $0 --add <Name> <URL> <TargetFolder>"
+  echo "Usage (with profile):   $SCRIPT_NAME <ProfileName>"
+  echo "Usage (direct):         $SCRIPT_NAME <URL> <TargetFolder>"
+  echo "Usage (to add profile): $SCRIPT_NAME --add <Name> <URL> <TargetFolder>"
   exit 1
 fi
 
@@ -78,7 +79,7 @@ if [ -f "$LIB_DIR/$1" ]; then
 else
   if [ -z "$2" ]; then
     echo "Error: Profile '$1' does not exist and no target folder was specified for a direct download."
-    echo "Use '$0 --help' for usage instructions."
+    echo "Use '$SCRIPT_NAME --help' for usage instructions."
     exit 1
   fi
   URL="$1"
