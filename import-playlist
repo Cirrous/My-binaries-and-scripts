@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Base directory for playlist profiles
-LIB_DIR="$HOME/.local/etc/importPlaylist/"
+LIB_DIR="$HOME/.local/etc/import-playlist/"
 
 show_help() {
   echo "A wrapper for yt-dlp to manage and download Youtube Music playlists."
@@ -10,14 +10,36 @@ show_help() {
   echo "  $0 <ProfileName>                       Download using a saved profile"
   echo "  $0 <URL> <TargetFolder>                Direct download without saving a profile"
   echo "  $0 --add <Name> <URL> <TargetFolder>   Create/overwrite a playlist profile"
+  echo "  $0 -l, --list                          List all saved profiles"
   echo "  $0 -h, --help                          Show this help message"
   echo ""
   echo "Profiles are stored in: $LIB_DIR"
   exit 0
 }
 
+list_profiles() {
+  echo "Saved playlist profiles:"
+  echo "------------------------"
+
+  if [ -d "$LIB_DIR" ] && [ "$(ls -A "$LIB_DIR")" ]; then
+    for file in "$LIB_DIR"/*; do
+      if [ -f "$file" ]; then
+        source "$file"
+        printf "  %-15s -> %s\n" "$(basename "$file")" "$FOLDER"
+      fi
+    done
+  else
+    echo "  No profiles found yet. Create one using --add."
+  fi
+  exit 0
+}
+
 if [ "$1" = "-h" ] || [ "$1" = "--help" ]; then
   show_help
+fi
+
+if [ "$1" = "-l" ] || [ "$1" = "--list" ]; then
+  list_profiles
 fi
 
 mkdir -p "$LIB_DIR"
