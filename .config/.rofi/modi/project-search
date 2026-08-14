@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+
+PROJECT_DIR=~/code
+
+cd "$PROJECT_DIR" || exit 1
+
+if [ $# -eq 0 ]; then
+    fd --type d --max-depth 1 --hidden \
+       --exclude .git \
+       --exclude node_modules \
+       --exclude .cache \
+       .
+else
+    coproc ( code "$PROJECT_DIR/$1" > /dev/null 2>&1 )
+fi
