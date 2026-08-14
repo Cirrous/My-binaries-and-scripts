@@ -1,5 +1,17 @@
 # Collection of my Dotfiles & Scripts
 
+## Vision
+Since I work across three different systems simultaneously, the long-term goal for this repository is to serve as more than just a storage space for binaries. It aims to provide a complete setup script that automatically manages my dotfiles, essential software packages, and custom binaries.
+
+### TODO
+- [ ] Create installation script with a list of essential packages
+- [ ] Create a script to symlink directories from `./config` to `~/.config`
+- [ ] Add `.bashrc` configuration
+- [ ] Add Hyprland configuration
+- [ ] Add Waybar configuration
+- [ ] Add wlogout configuration
+- [ ] Update README
+
 ## Self-written scripts
 
 Most of these scripts feature a help menu. You can view usage instructions by opening the script to read the comments or by running it with the -h or --help flags.
