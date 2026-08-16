@@ -3,13 +3,11 @@
 cd ~
 if [ $# -eq 0 ]; then
     fd --type f --hidden \
-       --exclude .git \
-       --exclude .cache \
-       --exclude node_modules \
-       --exclude .local/share/\
-       --exclude .local/state \
-       --exclude .vivaldi \
-       .
+   --exclude '**/vivaldi/**' \
+   --exclude '**/vesktop/**' \
+   --exclude '**/firefox/**' \
+   --exclude '**/Bilder/Bilder/**' \
+   . Dokumente Downloads Schreibtisch Musik .config .bashrc
 else
     coproc ( xdg-open "$1" > /dev/null 2>&1 )
 fi

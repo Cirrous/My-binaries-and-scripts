@@ -1,0 +1,27 @@
+#!/bin/bash
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+CONFIG_DIR="$SCRIPT_DIR/.config"
+TARGET_DIR="$HOME/.config"
+
+shopt -s nullglob
+
+mkdir -p "$TARGET_DIR"
+
+for entry in "$CONFIG_DIR"/*; do
+    if [ -d "$entry" ]; then
+        name="$(basename "$entry")"
+        target_path="$TARGET_DIR/$name"
+
+        if [ -e "$target_path" ] || [ -L "$target_path" ]; then
+            printf 'Skipping existing %s\n' "$target_path"
+            continue
+        fi
+
+        ln -s "$entry" "$target_path"
+    fi
+done
+
+printf 'Symlinks created in %s\n' "$TARGET_DIR"

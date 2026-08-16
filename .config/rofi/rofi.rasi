@@ -8,6 +8,8 @@ https://davatorium.github.io/rofi/guides/Transparency/theme3-transparency/
 configuration {
 	
     show-icons:                 false;
+    show-num-filtered-rows:     true;
+    show-num-rows:              true;
     display-drun:               "";
     display-file-search:        "";
     display-project-search:     "";
@@ -85,7 +87,7 @@ horibox {
     background-color:            @background-colour;
     text-color:                  @foreground-colour;
     orientation:                 horizontal;
-    children:                    [ "prompt", "textbox-prompt-colon","entry", "listview" ];
+    children:                    [ "prompt", "textbox-prompt-colon","entry", "listview", "num-filtered-rows", "textbox-num-sep", "num-rows" ];
 }
 
 /*****----- Main Box -----*****/
@@ -140,12 +142,15 @@ entry {
     placeholder-color:           inherit;
 }
 num-filtered-rows {
+    padding: 2px 0 0 0;
+    margin: 0 0 0 8px;
     enabled:                     true;
     expand:                      false;
     background-color:            inherit;
     text-color:                  inherit;
 }
 textbox-num-sep {
+    padding: 2px 0 0 0;
     enabled:                     true;
     expand:                      false;
     str:                         "/";
@@ -153,6 +158,8 @@ textbox-num-sep {
     text-color:                  inherit;
 }
 num-rows {
+    padding: 2px 0 0 0;
+    margin: 0 8px 0 0;
     enabled:                     true;
     expand:                      false;
     background-color:            inherit;

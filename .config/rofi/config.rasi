@@ -10,6 +10,7 @@ configuration {
 	scroll-method: 0;
 	normalize-match: true;
 	show-icons: false;
+	show-match: true;
 	icon-theme: "Papirus";
 /*	cache-dir: ;*/
 	steal-focus: false;

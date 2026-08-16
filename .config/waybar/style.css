@@ -1,0 +1,96 @@
+@import "colors.css";
+
+* {
+  border-radius: 0;
+  font-size: 0.8rem;
+  min-height: 0px;
+  font-family: "JetBrainsMono Nerd Font Propo", "Font Awesome 6 Free";
+  padding: 0px;
+}
+
+window#waybar {
+  background: #000000;
+  color: @on_surface;
+  padding: 0px;
+  margin: 1px 0px;
+}
+
+tooltip {
+}
+tooltip label {
+  color: @on_surface;
+}
+
+#workspaces {
+  font-weight: normal;
+  font-style: normal;
+}
+
+#workspaces button {
+  margin: 0px 3px;
+  min-height: 0;
+  color: black;
+  font-size: 4px;
+  background-color: #61afef;
+  transition: all 0.3s ease-in-out;
+  opacity: 0.4;
+}
+
+#workspaces button.active {
+  background-color: #61afef;
+  transition: all 0.3s ease-in-out;
+  opacity: 1;
+}
+
+#clock,
+#battery,
+#pulseaudio,
+#network,
+#custom-exit {
+  padding: 0px 10px;
+  margin: 0px 5px 0px 3px;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 100px;
+  color: @on_surface;
+}
+
+#battery.charging,
+#battery.plugged {
+  color: #00ff00;
+}
+
+/* Batterie Warnung - gelbes Icon */
+#battery.warning:not(.charging) {
+  color: #ffff00;
+}
+
+/* Batterie kritisch - rotes Icon */
+#battery.critical:not(.charging) {
+  color: #ff0000;
+}
+
+#battery {
+  color: white;
+}
+
+#clock {
+  margin-right: 15px;
+  margin-left: 5px;
+  padding-right: 6px;
+}
+
+#custom-exit {
+  margin-right: 5px;
+}
+#custom-exit:hover {
+  transition:
+    background 0.3s,
+    color 0.3s;
+  background: rgba(255, 0, 0, 0.3);
+  color: #ff0000;
+}
+
+#cpu,
+#memory {
+  margin-right: 5px;
+}
