@@ -29,15 +29,16 @@ tooltip label {
 #workspaces button {
   margin: 0px 3px;
   min-height: 0;
-  color: black;
+  color: white;
   font-size: 4px;
-  background-color: #61afef;
+  background-color: transparent;
   transition: all 0.3s ease-in-out;
   opacity: 0.4;
 }
 
 #workspaces button.active {
   background-color: #61afef;
+  color: black;
   transition: all 0.3s ease-in-out;
   opacity: 1;
 }
