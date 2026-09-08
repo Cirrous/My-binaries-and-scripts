@@ -8,7 +8,13 @@ TARGET_DIR="$HOME/.config"
 
 shopt -s nullglob
 
+source "$SCRIPT_DIR/bin/colors.sh"
+
 mkdir -p "$TARGET_DIR"
+
+printf '\n%b==>%b Installing dotfiles into %b%s%b\n\n' "$CYAN$BOLD" "$RESET" "$BOLD" "$TARGET_DIR" "$RESET"
+
+overwrite_mode=""
 
 for entry in "$CONFIG_DIR"/*; do
     if [ -d "$entry" ]; then
@@ -16,12 +22,40 @@ for entry in "$CONFIG_DIR"/*; do
         target_path="$TARGET_DIR/$name"
 
         if [ -e "$target_path" ] || [ -L "$target_path" ]; then
-            printf 'Skipping existing %s\n' "$target_path"
+            if [ "$overwrite_mode" = "all" ]; then
+                do_overwrite="y"
+            elif [ "$overwrite_mode" = "none" ]; then
+                do_overwrite="n"
+            else
+                printf '%b!%b Config %b%s%b already exists.\n' "$YELLOW$BOLD" "$RESET" "$BOLD" "$name" "$RESET"
+                while true; do
+                    printf '  %b[y]%bes  %b[n]%bo  %b[a]%bll  %b[N]%bone of the rest\n' \
+                        "$GREEN$BOLD" "$RESET" "$RED$BOLD" "$RESET" "$GREEN$BOLD" "$RESET" "$RED$BOLD" "$RESET"
+                    read -r -p "  Overwrite? " answer
+                    case "$answer" in
+                        y|Y) do_overwrite="y"; break ;;
+                        n|N) do_overwrite="n"; break ;;
+                        a|A) overwrite_mode="all"; do_overwrite="y"; break ;;
+                        none|None|NONE) overwrite_mode="none"; do_overwrite="n"; break ;;
+                        *) printf '  %bPlease enter y, n, a or none.%b\n' "$RED" "$RESET" ;;
+                    esac
+                done
+            fi
+
+            if [ "$do_overwrite" = "n" ]; then
+                printf '  %b-%b skipped %s\n' "$DIM" "$RESET" "$target_path"
+                continue
+            fi
+
+            rm -rf "$target_path"
+            printf '  %b~%b overwritten %s\n' "$YELLOW" "$RESET" "$target_path"
+            ln -s "$entry" "$target_path"
             continue
         fi
 
         ln -s "$entry" "$target_path"
+        printf '  %b+%b linked %s\n' "$GREEN" "$RESET" "$target_path"
     fi
 done
 
-printf 'Symlinks created in %s\n' "$TARGET_DIR"
+printf '\n%b==>%b Symlinks created in %b%s%b\n\n' "$GREEN$BOLD" "$RESET" "$BOLD" "$TARGET_DIR" "$RESET"

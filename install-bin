@@ -1,5 +1,8 @@
 #!/bin/bash
 
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/bin/colors.sh"
+
 # Target directory for local user binaries
 TARGET_DIR="$HOME/.local/bin"
 
@@ -16,10 +19,10 @@ if [ "$1" = "-h" ] || [ "$1" = "--help" ]; then
   show_help
 fi
 
+cd "$SCRIPT_DIR/bin"
 mkdir -p "$TARGET_DIR"
 
-echo "Deploying scripts to $TARGET_DIR..."
-echo "--------------------------------------------------"
+printf '%b==>%b Deploying scripts to %b%s%b\n\n' "$CYAN$BOLD" "$RESET" "$BOLD" "$TARGET_DIR" "$RESET"
 
 SCRIPT_NAME=$(basename "$0")
 COPY_COUNT=0
@@ -27,15 +30,17 @@ COPY_COUNT=0
 for file in *; do
   if [ -f "$file" ] && [ -x "$file" ] && [ "$file" != "$SCRIPT_NAME" ]; then
     cp -pf "$file" "$TARGET_DIR/$file"
-    echo "  Copied: $file -> $TARGET_DIR/$file"
+    printf '  %b+%b copied %s\n' "$GREEN" "$RESET" "$file"
     ((COPY_COUNT++))
   fi
 done
 
-echo "--------------------------------------------------"
+cp -pf colors.sh "$TARGET_DIR/colors.sh"
+
+printf '\n'
 if [ "$COPY_COUNT" -eq 0 ]; then
-  echo "No executable scripts found in the current directory."
-  echo "Hint: Make sure your scripts are executable (chmod +x scriptname)."
+  printf '%b!%b No executable scripts found in the current directory.\n' "$YELLOW$BOLD" "$RESET"
+  printf '  Hint: Make sure your scripts are executable (chmod +x scriptname).\n'
 else
-  echo "Success: Successfully deployed $LINK_COUNT script(s)!"
+  printf '%b==>%b Successfully deployed %b%s%b script(s)!\n' "$GREEN$BOLD" "$RESET" "$BOLD" "$COPY_COUNT" "$RESET"
 fi

@@ -4,17 +4,13 @@
 libpath="$HOME/.local/etc/goto/gotolib"
 usage="Usage:\tgoto -n <id> <path>\n\tgoto -n <id>\n\tgoto <id>\n\tgoto -l\n\tgoto -w"
 
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-CYAN='\033[0;36m'
-NC='\033[0m'
+source "$(dirname "${BASH_SOURCE[0]}")/colors.sh"
 
 help() {
-  echo -e "${CYAN}--- goto: Quick Directory Navigation ---${NC}"
+  echo -e "${CYAN}--- goto: Quick Directory Navigation ---${RESET}"
   echo -e "This tool allows you to create shortcuts (aliases) for directories"
   echo -e "and switch between them quickly.\n"
-  echo -e "${GREEN}Commands:${NC}"
+  echo -e "${GREEN}Commands:${RESET}"
   echo -e "  goto <id>             Jump to the saved directory <id>."
   echo -e "  goto -n <id> [path]   Save the current (or specified) directory as <id>."
   echo -e "  goto -l               List all saved aliases."
@@ -50,11 +46,11 @@ if [ "$1" == "-l" ]; then
     keyword=${LINE%:*}
     num_chars=${#keyword}
     num_padding=$(($max_num_chars - $num_chars))
-    printf ${GREEN}${keyword}${NC}
+    printf ${GREEN}${keyword}${RESET}
     printf ' %.0s' $(seq 0 $num_padding)
-    printf "${YELLOW}- ${NC}"
+    printf "${YELLOW}- ${RESET}"
     dir=$(echo ${LINE#*:} | sed "s:^$HOME:~:")
-    printf ${CYAN}${dir}${NC}
+    printf ${CYAN}${dir}${RESET}
     echo
   done <$libpath
   return
@@ -96,6 +92,6 @@ else
   if [ -n "$line" ]; then
     cd "$line"
   else
-    echo -e "${RED}id ${CYAN}$1${RED} not found${NC}"
+    echo -e "${RED}id ${CYAN}$1${RED} not found${RESET}"
   fi
 fi
