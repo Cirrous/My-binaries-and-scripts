@@ -5,18 +5,57 @@ source "$(dirname "${BASH_SOURCE[0]}")/colors.sh"
 modul="wlan0" #Set your Wlan module here
 # you can look up your Wlan module with the command: ip addr
 
-iwctl station $modul scan
-iwctl station $modul get-networks | awk 'NR < 5 {print; next} {lines[NR]=$0} END {for (i=5; i<NR; i++) printf "%6d\t%s\n", i-4, lines[i]; print lines[NR]}'
-mapfile -t networks < <(iwctl station $modul get-networks| awk 'NR >= 6 {sub(/^[[:space:]]+/, ""); sub(/  +.*/, ""); print $0}')
+iwctl station "$modul" scan
+
+mapfile -t lines < <(iwctl station "$modul" get-networks)
+
+# iwctl sometimes trails the table with blank lines; drop them so the last
+# real network isn't mistaken for footer noise.
+while [ "${#lines[@]}" -gt 0 ] && [ -z "${lines[-1]//[[:space:]]/}" ]; do
+    unset 'lines[-1]'
+done
+
+header_count=4
+data_count=$((${#lines[@]} - header_count))
+
+printf '%s\n' "${lines[@]:0:header_count}"
+echo ""
+
+if (( data_count < 1 )); then
+    printf '%bNo networks found.%b\n' "$YELLOW" "$RESET"
+    exit 1
+fi
+
+ssids=()
+for ((i = 0; i < data_count; i++)); do
+    line="${lines[$((header_count + i))]}"
+    ssid="$(sed -E 's/^[[:space:]]*>?[[:space:]]*//; s/  +.*//' <<< "$line")"
+    ssids+=("$ssid")
+    printf '  %b%6d%b\t%s\n' "$GREEN$BOLD" "$((i + 1))" "$RESET" "$line"
+done
+
 echo ""
 read -p "$(printf '%bChoose network number%b (or 0 to cancel): ' "$CYAN$BOLD" "$RESET")" choice
 
-if [ "$choice" -eq 0 ] 2>/dev/null; then
+if ! [[ "$choice" =~ ^[0-9]+$ ]]; then
+    printf '%bInvalid input: please enter a number.%b\n' "$RED" "$RESET"
+    exit 1
+elif (( choice == 0 )); then
     exit 0
-elif [ "$choice" -eq 1 ] 2>/dev/null; then
+elif (( choice == 1 )); then
     echo ""
     printf '%bThat is the network you are already connected to, silly.%b\n' "$YELLOW" "$RESET"
     exit 0
+elif (( choice > data_count )); then
+    printf '%bInvalid choice: no network with number %d.%b\n' "$RED" "$choice" "$RESET"
+    exit 1
 fi
 
-iwctl station $modul connect "${networks[$((choice -2))]}"
+target="${ssids[$((choice - 1))]}"
+printf '\n%bConnecting to %s%b...\n' "$CYAN" "$target" "$RESET"
+if iwctl station "$modul" connect "$target"; then
+    printf '%bConnected to %s.%b\n' "$GREEN$BOLD" "$target" "$RESET"
+else
+    printf '%bFailed to connect to %s.%b\n' "$RED$BOLD" "$target" "$RESET"
+    exit 1
+fi
