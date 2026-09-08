@@ -10,7 +10,8 @@ Since I work across three different systems simultaneously, the long-term goal f
 - [✓] Create a script to symlink directories from `./config` to `~/.config`
 - [ ] Add `.bashrc` configuration
 - [✓] Add Hyprland configuration
-- [ ] Rewrite Hyprland configuration to use .lua format instead of .conf
+- [✓] Rewrite Hyprland configuration to use .lua format instead of .conf
+- [ ] Rewrite monitor-mode to work with new .lua format of Hyprland configuration
 - [✓] Add Waybar configuration
 - [✓] Add wlogout configuration
 - [✓] Update README
