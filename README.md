@@ -9,10 +9,11 @@ Since I work across three different systems simultaneously, the long-term goal f
 - [✓] Create installation script with a list of essential packages
 - [✓] Create a script to symlink directories from `./config` to `~/.config`
 - [ ] Add `.bashrc` configuration
-- [ ] Add Hyprland configuration
+- [✓] Add Hyprland configuration
+- [ ] Rewrite Hyprland configuration to use .lua format instead of .conf
 - [✓] Add Waybar configuration
 - [✓] Add wlogout configuration
-- [ ] Update README
+- [✓] Update README
 
 ## Self-written scripts
 
@@ -47,6 +48,10 @@ export BROWSER="vivaldi" # Or firefox, chromium etc.
 - yt - Youtube
 
 ## Dotfiles
+
+Hyprland (Window manager)
+
+- Compositor config, keybinds, autostart entries and window/workspace rules for the Wayland desktop.
 
 Matugen (Color Generator)
 
