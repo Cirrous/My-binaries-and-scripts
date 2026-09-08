@@ -1,36 +1,101 @@
-#Official Arch Packages
+# Official Arch Packages
 
 # Wayland compositor & shell
-hyprland
-waybar
-rofi
+hyprland                     # a highly customizable dynamic tiling Wayland compositor
+waybar                       # Highly customizable Wayland bar for Sway and Wlroots based compositors
+rofi                         # A window switcher, application launcher and dmenu replacement
+hyprpicker                   # A wlroots-compatible Wayland color picker that does not suck
+hyprsunset                   # An application to enable a blue-light filter on Hyprland
+brightnessctl                # Lightweight brightness control tool
+cliphist                     # wayland clipboard manager
+
+# Display manager & session
+ly                           # TUI display manager
+
+# Desktop portals
+xdg-desktop-portal-gtk       # A backend implementation for xdg-desktop-portal using GTK
+xdg-desktop-portal-hyprland  # xdg-desktop-portal backend for hyprland
+
+# Bluetooth
+bluez                        # Daemons for the bluetooth protocol stack
+bluez-utils                  # Development and debugging utilities for the bluetooth protocol stack
+bluetui                      # TUI for managing bluetooth devices
 
 # Terminal & editor
-kitty
-neovim
-git
-ripgrep
-fd
-base-devel
+kitty                        # A modern, hackable, featureful, OpenGL-based terminal emulator
+neovim                       # Fork of Vim aiming to improve user experience, plugins, and GUIs
+git                          # the fast distributed version control system
+fd                           # Simple, fast and user-friendly alternative to find
+tree                         # A directory listing program displaying a depth indented list of files
+yazi                         # Blazing fast terminal file manager written in Rust, based on async I/O
+
+# Dev toolchain
+cmake                        # A cross-platform open-source make system
+npm                          # JavaScript package manager
+rust                         # Systems programming language focused on safety, speed and concurrency
+zig                          # a general-purpose programming language and toolchain for maintaining robust, optimal, and reusable software
+python-pip                   # Python package manager
+
+# Containers
+docker                       # Pack, ship and run any application as a lightweight container
+lazydocker                   # A simple terminal UI for docker and docker-compose, written in Go with the gocui library.
 
 # Screenshots & screen recording (screenshot, screenrecord)
-grim
-slurp
-wf-recorder
-swappy
-wl-clipboard
-libnotify
+grim                         # Screenshot utility for Wayland
+slurp                        # Select a region in a Wayland compositor
+wf-recorder                  # Screen recorder for wlroots-based compositors such as sway
+swappy                       # A Wayland native snapshot editing tool
+wl-clipboard                 # Command-line copy/paste utilities for Wayland
+libnotify                    # Library for sending desktop notifications
 
 # Networking (wlan, rofi ssh mode, window switching)
-iwd
-wmctrl
-xdg-utils
-openssh
-sudo
+iwd                          # Internet Wireless Daemon
+xdg-utils                    # Command line tools that assist applications with a variety of desktop integration tasks
+openssh                      # SSH protocol implementation for remote login, command execution and file transfer
+netscanner                   # Network scanner
+
+# Media & audio
+pipewire                     # Low-latency audio/video router and processor
+wireplumber                  # Session / policy manager implementation for PipeWire
+alsa-utils                   # Advanced Linux Sound Architecture - Utilities e.g. alsamixer to unmute hardware on system level
+gst-plugin-pipewire          # Multimedia graph framework - pipewire plugin
+mpv                          # a free, open source, and cross-platform media player
+loupe                        # image viewer
+
+# File manager
+nautilus                     # Default file manager for GNOME
+
+# Filesystem
+ntfs-3g                      # NTFS FUSE driver (windows file system)
+
+# System monitoring
+btop                         # A monitor of system resources, bpytop ported to C++
+fastfetch                    # A feature-rich and performance oriented neofetch like system information tool
+
+# Fonts & theming
+adw-gtk-theme                # Unofficial GTK 3 port of the libadwaita theme
+noto-fonts-emoji             # Google Noto Color Emoji font
+otf-font-awesome             # Iconic font designed for Bootstrap - otf format
+woff2-font-awesome           # Iconic font designed for Bootstrap - woff2 format
+ttf-liberation               # Font family which aims at metric compatibility with Arial, Times New Roman, and Courier New
+ttf-jetbrains-mono-nerd      # Patched font JetBrains Mono from nerd fonts library
+
+# Browsers
+firefox                      # Fast, Private & Safe Web Browser
+vivaldi                      # An advanced browser made with the power user in mind.
+
+# Office
+libreoffice-still            # LibreOffice maintenance branch
+libreoffice-still-de         # LibreOffice german language pack
 
 # Misc tools
-yt-dlp
-pulsemixer
-matugen
-awww
-ttf-jetbrains-mono-nerd
+yt-dlp                       # A youtube-dl fork with additional features and fixes
+pulsemixer                   # CLI and curses mixer for pulseaudio
+matugen                      # A material you color generation tool
+awww                         # An Answer to your Wayland Wallpaper Woes
+7zip                         # File archiver for extremely high compression
+lzip                         # A lossless file compressor based on the LZMA algorithm
+rsync                        # A fast and versatile file copying tool for remote and local files
+speedtest-cli                # Command line interface for testing internet bandwidth using speedtest.net
+wget                         # Network utility to retrieve files from the web
+scrcpy                       # Display and control your Android device

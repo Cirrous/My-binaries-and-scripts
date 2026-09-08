@@ -1,7 +1,19 @@
-#Packages from the aur (arch user repository)
+# Packages from the aur (arch user repository)
 
 # Logout menu
-wlogout
+wlogout                   # Logout menu for wayland
 
 # Microsofts Visual Studio Code
-visual-studio-code-bin
+visual-studio-code-bin    # Visual Studio Code (vscode)
+
+# Emoji picker
+hypremoji                 # A modern emoji picker for Hyprland, written in Rust + GTK4
+
+# Fonts & icons
+ttf-ms-fonts              # Core TTF Fonts from Microsoft
+
+# File transfer
+localsend-bin             # An open source cross-platform alternative to AirDrop
+
+# Misc tools
+pokemon-colorscripts-git  # Print Pokemon ASCII art in the terminal

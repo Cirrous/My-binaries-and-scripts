@@ -9,7 +9,7 @@ OFFICIAL_LIST="$SCRIPT_DIR/packages.txt"
 AUR_LIST="$SCRIPT_DIR/packages-aur.txt"
 
 read_package_list() {
-    grep -vE '^[[:space:]]*(#|$)' "$1" || true
+    sed -E 's/[[:space:]]*#.*$//' "$1" | grep -vE '^[[:space:]]*$' || true
 }
 
 mapfile -t official_packages < <(read_package_list "$OFFICIAL_LIST")
