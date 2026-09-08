@@ -1,0 +1,7 @@
+#Packages from the aur (arch user repository)
+
+# Logout menu
+wlogout
+
+# Microsofts Visual Studio Code
+visual-studio-code-bin

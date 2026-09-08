@@ -1,30 +1,33 @@
 # Collection of my Dotfiles & Scripts
 
 ## Vision
+
 Since I work across three different systems simultaneously, the long-term goal for this repository is to serve as more than just a storage space for binaries. It aims to provide a complete setup script that automatically manages my dotfiles, essential software packages, and custom binaries.
 
 ### TODO
-- [ ] Create installation script with a list of essential packages
-- [ ] Create a script to symlink directories from `./config` to `~/.config`
+
+- [✓] Create installation script with a list of essential packages
+- [✓] Create a script to symlink directories from `./config` to `~/.config`
 - [ ] Add `.bashrc` configuration
 - [ ] Add Hyprland configuration
-- [ ] Add Waybar configuration
-- [ ] Add wlogout configuration
+- [✓] Add Waybar configuration
+- [✓] Add wlogout configuration
 - [ ] Update README
 
 ## Self-written scripts
 
 Most of these scripts feature a help menu. You can view usage instructions by opening the script to read the comments or by running it with the -h or --help flags.
 
-- clear-pacman - Searches for and deletes orphan packages *(Inspired by [bluemi](https://github.com/Bluemi/std_utils/tree/master/clear-pacman))*
-- goto - Navigates you faster through the terminal using aliases *(Inspired by [bluemi](https://github.com/Bluemi/std_utils/tree/master/goto))*
-- import-playlist - Downloads YouTube Music playlists 
+- clear-pacman - Searches for and deletes orphan packages _(Inspired by [bluemi](https://github.com/Bluemi/std_utils/tree/master/clear-pacman))_
+- goto - Navigates you faster through the terminal using aliases _(Inspired by [bluemi](https://github.com/Bluemi/std_utils/tree/master/goto))_
+- import-playlist - Downloads YouTube Music playlists
 - monitor-mode - When using Hyprland as the window manager this script decides whether to extend or mirror the main screen
 - screenrecord - Records the entire screen or a selected region with internal/microphone audio support.
 - screenshot - Takes screenshots and allows simple editing before saving
 - wlan - CLI Wi-Fi manager. Uses iwctl under the hood to scan for networks and connect to them.
 - yallah - Fast way to git add, commit and push to a repository
 - install-bin - Moves all of the scripts above into the users ./local/bin folder
+- install-packages - Installs every package listed in `packages.txt` (official repos) and `packages-aur.txt` (AUR, via `yay`)
 
 ## Webapps
 
@@ -33,7 +36,6 @@ Add this line to your shell configuration (.bashrc or .zshrc)
 ```bash
 export BROWSER="vivaldi" # Or firefox, chromium etc.
 ```
-
 
 - calendar - Google Calendar
 - drive - Google Drive
@@ -47,7 +49,9 @@ export BROWSER="vivaldi" # Or firefox, chromium etc.
 ## Dotfiles
 
 Matugen (Color Generator)
+
 - Used to generate and maintain a unified color palette based on wallpapers across specified tools and desktop elements.
 
 Neovim (Terminal Editor)
+
 - Complete IDE-like configuration. Includes styling, custom keybindings, plugin management, and LSP support for coding.

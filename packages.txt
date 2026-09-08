@@ -1,0 +1,36 @@
+#Official Arch Packages
+
+# Wayland compositor & shell
+hyprland
+waybar
+rofi
+
+# Terminal & editor
+kitty
+neovim
+git
+ripgrep
+fd
+base-devel
+
+# Screenshots & screen recording (screenshot, screenrecord)
+grim
+slurp
+wf-recorder
+swappy
+wl-clipboard
+libnotify
+
+# Networking (wlan, rofi ssh mode, window switching)
+iwd
+wmctrl
+xdg-utils
+openssh
+sudo
+
+# Misc tools
+yt-dlp
+pulsemixer
+matugen
+awww
+ttf-jetbrains-mono-nerd

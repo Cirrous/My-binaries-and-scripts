@@ -1,0 +1,44 @@
+#!/bin/bash
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/bin/colors.sh"
+
+OFFICIAL_LIST="$SCRIPT_DIR/packages.txt"
+AUR_LIST="$SCRIPT_DIR/packages-aur.txt"
+
+read_package_list() {
+    grep -vE '^[[:space:]]*(#|$)' "$1" || true
+}
+
+mapfile -t official_packages < <(read_package_list "$OFFICIAL_LIST")
+mapfile -t aur_packages < <(read_package_list "$AUR_LIST")
+
+if ! command -v yay >/dev/null 2>&1; then
+    printf '\n%b==>%b yay not found, bootstrapping it from the AUR\n\n' "$CYAN$BOLD" "$RESET"
+
+    sudo pacman -S --needed base-devel git
+
+    yay_build_dir="$(mktemp -d)"
+    trap 'rm -rf "$yay_build_dir"' EXIT
+
+    git clone https://aur.archlinux.org/yay.git "$yay_build_dir/yay"
+    (cd "$yay_build_dir/yay" && makepkg -si)
+fi
+
+if [ "${#official_packages[@]}" -gt 0 ]; then
+    printf '\n%b==>%b Installing %b%d%b official package(s)\n\n' "$CYAN$BOLD" "$RESET" "$BOLD" "${#official_packages[@]}" "$RESET"
+    sudo pacman -S --needed "${official_packages[@]}"
+else
+    printf '\n%b!%b No official packages listed in %s\n' "$YELLOW$BOLD" "$RESET" "$OFFICIAL_LIST"
+fi
+
+if [ "${#aur_packages[@]}" -gt 0 ]; then
+    printf '\n%b==>%b Installing %b%d%b AUR package(s)\n\n' "$CYAN$BOLD" "$RESET" "$BOLD" "${#aur_packages[@]}" "$RESET"
+    yay -S --needed "${aur_packages[@]}"
+else
+    printf '\n%b!%b No AUR packages listed in %s\n' "$YELLOW$BOLD" "$RESET" "$AUR_LIST"
+fi
+
+printf '\n%b==>%b All packages installed\n\n' "$GREEN$BOLD" "$RESET"
