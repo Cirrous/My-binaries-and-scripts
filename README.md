@@ -12,6 +12,7 @@ Since I work across three different systems simultaneously, the long-term goal f
 - [✓] Add Hyprland configuration
 - [✓] Rewrite Hyprland configuration to use .lua format instead of .conf
 - [ ] Rewrite monitor-mode to work with new .lua format of Hyprland configuration
+- [ ] Create a general configuration script to set things like the XDG theme
 - [✓] Add Waybar configuration
 - [✓] Add wlogout configuration
 - [✓] Update README
