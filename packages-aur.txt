@@ -13,7 +13,7 @@ hypremoji                 # A modern emoji picker for Hyprland, written in Rust 
 ttf-ms-fonts              # Core TTF Fonts from Microsoft
 
 # File transfer
-localsend-bin             # An open source cross-platform alternative to AirDrop
+localsend            # An open source cross-platform alternative to AirDrop
 
 # Misc tools
 pokemon-colorscripts-git  # Print Pokemon ASCII art in the terminal

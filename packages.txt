@@ -35,6 +35,7 @@ npm                          # JavaScript package manager
 rust                         # Systems programming language focused on safety, speed and concurrency
 zig                          # a general-purpose programming language and toolchain for maintaining robust, optimal, and reusable software
 python-pip                   # Python package manager
+jq                           # CLI for working with json format
 
 # Containers
 docker                       # Pack, ship and run any application as a lightweight container

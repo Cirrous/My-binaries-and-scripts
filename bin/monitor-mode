@@ -1,26 +1,646 @@
 #!/bin/bash
 
-#To set up this script right and for more information visit:
-#https://wiki.hypr.land/Configuring/Monitors/
-#Probably gonna improve this script someday, but it works for now :D
+# monitor-mode - arrange or mirror your connected monitors under Hyprland.
+#
+# Probably gonna improve this script someday, but it works for now :D
 
-case "$1" in
-mirror)
-    sed -i '0,/monitor=/! s/monitor=.*/monitor=, 1920x1080@60, 0x0,1,mirror,eDP-1/' ~/.config/hypr/hyprland.conf
-    echo "Monitor now mirrors main screen"
-    ;;
-extend)
-    sed -i '0,/monitor=/! s/monitor=.*/monitor=, preferred, auto, 1/' ~/.config/hypr/hyprland.conf
-    echo "Monitor now extends main screen"
-    ;;
+source "$(dirname "${BASH_SOURCE[0]}")/colors.sh"
+
+HYPR_LUA="$HOME/.config/hypr/hyprland.lua"
+MONITORS_LUA="$HOME/.config/hypr/monitors.lua"
+
+usage() {
+    cat <<EOF
+
+Usage: monitor-mode [--list|-l] [--help|-h]
+
+Run with no arguments to interactively arrange your currently connected
+monitors:
+  - pick which connected monitor is the reference/main screen
+  - for every other monitor, choose to mirror the reference, or place it
+    to its left, right, above, or below it
+
+The chosen layout is applied immediately and live (via 'hyprctl eval'),
+and on success is also written into:
+  $MONITORS_LUA
+(required from hyprland.lua) so it survives a later 'hyprctl reload' or a
+fresh Hyprland session instead of reverting to whatever was last saved there.
+
+  --list, -l   Print the currently detected monitors and exit
+  --help, -h   Show this help message
+EOF
+}
+
+die() {
+    printf '%b%s%b\n' "$RED$BOLD" "$1" "$RESET" >&2
+    exit "${2:-1}"
+}
+
+warn() {
+    printf '%b%s%b\n' "$YELLOW$BOLD" "$1" "$RESET"
+}
+
+info() {
+    printf '%b%s%b\n' "$CYAN" "$1" "$RESET"
+}
+
+ok() {
+    printf '%b%s%b\n' "$GREEN$BOLD" "$1" "$RESET"
+}
+
+require_hyprctl() {
+    command -v hyprctl >/dev/null 2>&1 || die "hyprctl not found - is Hyprland running?" 127
+}
+
+# Escapes a value for safe embedding inside a double-quoted Lua string.
+lua_esc() {
+    local s="$1"
+    s="${s//\\/\\\\}"
+    s="${s//\"/\\\"}"
+    printf '%s' "$s"
+}
+
+clean_num() {
+    awk -v s="$1" 'BEGIN { printf "%g", s + 0 }'
+}
+
+# Rounds a numeric string to the nearest integer (e.g. refreshRate "60.00000"
+# -> "60"). See clean_num above for why this goes through awk, not printf.
+round_num() {
+    awk -v s="$1" 'BEGIN { printf "%d", s + 0.5 }'
+}
+
+# rects_overlap x1 y1 w1 h1 x2 y2 w2 h2 -> prints 1 if the two logical
+# (post-scale) rectangles genuinely overlap, 0 if they're disjoint or only
+# touch at an edge (touching is the normal, intended result of "place to the
+# left/right/above/below" - only a strict overlap is worth warning about).
+rects_overlap() {
+    awk -v x1="$1" -v y1="$2" -v w1="$3" -v h1="$4" \
+        -v x2="$5" -v y2="$6" -v w2="$7" -v h2="$8" \
+        'BEGIN {
+            if (x1 < x2 + w2 && x2 < x1 + w1 && y1 < y2 + h2 && y2 < y1 + h1) print "1"
+            else print "0"
+        }'
+}
+
+# --- Monitor detection -------------------------------------------------
+
+read -r -d '' AWK_FALLBACK_PARSER <<'AWK_EOF'
+BEGIN { RS = "\0" }
+{
+    text = $0
+    gsub(/^[ \t\n]+/, "", text)
+    gsub(/[ \t\n]+$/, "", text)
+    sub(/^\[/, "", text)
+    sub(/\]$/, "", text)
+    depth = 0
+    rec = ""
+    n = 0
+    len = length(text)
+    for (i = 1; i <= len; i++) {
+        c = substr(text, i, 1)
+        if (c == "{") {
+            depth++
+            if (depth == 1) { rec = ""; continue }
+        } else if (c == "}") {
+            if (depth == 1) {
+                recs[++n] = rec
+                depth = 0
+                continue
+            } else {
+                depth--
+            }
+        }
+        if (depth >= 1) rec = rec c
+    }
+    for (k = 1; k <= n; k++) {
+        obj = recs[k]
+        id   = field(obj, "id")
+        name = field(obj, "name")
+        desc = field(obj, "description")
+        w    = field(obj, "width")
+        h    = field(obj, "height")
+        rr   = field(obj, "refreshRate")
+        x    = field(obj, "x")
+        y    = field(obj, "y")
+        sc   = field(obj, "scale")
+        foc  = field(obj, "focused")
+        dis  = field(obj, "disabled")
+        mir  = field(obj, "mirrorOf")
+        printf "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n", id, name, desc, w, h, rr, x, y, sc, foc, dis, mir
+    }
+}
+function unescape_json(s) {
+    gsub(/\\"/, "\"", s)
+    gsub(/\\\\/, "\\", s)
+    return s
+}
+function field(obj, key,   pat, val) {
+    # String values: a JSON string can embed an escaped quote (\") - e.g. a
+    # monitor description carrying a screen size like 34\" - so the closing
+    # quote must skip over \"-escaped ones rather than stopping at the first
+    # unescaped-looking quote. (\\.|[^"\\])* consumes either a backslash-
+    # escape pair or any plain non-quote/non-backslash character.
+    pat = "\"" key "\"[ \t]*:[ \t]*\"(\\\\.|[^\"\\\\])*\""
+    if (match(obj, pat)) {
+        val = substr(obj, RSTART, RLENGTH)
+        sub(/^"[^"]*"[ \t]*:[ \t]*"/, "", val)
+        sub(/"$/, "", val)
+        return unescape_json(val)
+    }
+    pat = "\"" key "\"[ \t]*:[ \t]*-?[0-9]+(\\.[0-9]+)?"
+    if (match(obj, pat)) {
+        val = substr(obj, RSTART, RLENGTH)
+        sub(/^"[^"]*"[ \t]*:[ \t]*/, "", val)
+        return val
+    }
+    pat = "\"" key "\"[ \t]*:[ \t]*(true|false)"
+    if (match(obj, pat)) {
+        val = substr(obj, RSTART, RLENGTH)
+        sub(/^"[^"]*"[ \t]*:[ \t]*/, "", val)
+        return val
+    }
+    return ""
+}
+AWK_EOF
+
+declare -a MON_ID MON_NAME MON_DESC MON_W MON_H MON_RR MON_X MON_Y MON_SCALE MON_FOCUSED MON_DISABLED MON_MIRROR
+MON_COUNT=0
+USED_JQ_FALLBACK=0
+
+load_monitors() {
+    MON_ID=(); MON_NAME=(); MON_DESC=(); MON_W=(); MON_H=(); MON_RR=()
+    MON_X=(); MON_Y=(); MON_SCALE=(); MON_FOCUSED=(); MON_DISABLED=(); MON_MIRROR=()
+
+    local json
+    json="$(hyprctl monitors -j 2>/dev/null)" || die "Failed to query hyprctl. Is Hyprland running?" 1
+    [ -n "$json" ] || die "hyprctl returned no monitor data." 1
+
+    local tsv
+    if command -v jq >/dev/null 2>&1; then
+        tsv="$(jq -r '.[] | [(.id|tostring), .name, .description, (.width|tostring), (.height|tostring), (.refreshRate|tostring), (.x|tostring), (.y|tostring), (.scale|tostring), (.focused|tostring), (.disabled|tostring), .mirrorOf] | @tsv' <<<"$json")" \
+            || die "Failed to parse monitor JSON with jq." 1
+    else
+        USED_JQ_FALLBACK=1
+        tsv="$(awk "$AWK_FALLBACK_PARSER" <<<"$json")" \
+            || die "Failed to parse monitor JSON (fallback parser)." 1
+    fi
+
+    [ -n "$tsv" ] || die "No monitors detected." 1
+
+    local id name desc w h rr x y sc foc dis mir
+    while IFS=$'\t' read -r id name desc w h rr x y sc foc dis mir; do
+        [ -n "$name" ] || continue
+        MON_ID+=("$id"); MON_NAME+=("$name"); MON_DESC+=("$desc")
+        MON_W+=("$w"); MON_H+=("$h"); MON_RR+=("$rr")
+        MON_X+=("$x"); MON_Y+=("$y"); MON_SCALE+=("$sc")
+        MON_FOCUSED+=("$foc"); MON_DISABLED+=("$dis"); MON_MIRROR+=("$mir")
+    done <<<"$tsv"
+
+    MON_COUNT=${#MON_NAME[@]}
+
+    if [ "$USED_JQ_FALLBACK" -eq 1 ]; then
+        printf '%b%s%b\n' "$DIM" "Note: jq not found, using a built-in fallback JSON parser (install jq for more robust parsing)." "$RESET" >&2
+    fi
+}
+
+print_monitor_line() {
+    local i="$1" idx_label="$2"
+    local tag=""
+    [ "${MON_DISABLED[i]}" = "true" ] && tag="  ${YELLOW}(disabled)${RESET}"
+    [ "${MON_FOCUSED[i]}" = "true" ] && tag="$tag  ${DIM}(focused)${RESET}"
+    printf '  %b%2s%b  %-10s  %sx%s@%sHz  pos %s,%s  scale %s%b\n' \
+        "$GREEN$BOLD" "$idx_label" "$RESET" \
+        "${MON_NAME[i]}" "${MON_W[i]}" "${MON_H[i]}" "$(round_num "${MON_RR[i]}")" \
+        "${MON_X[i]}" "${MON_Y[i]}" "$(clean_num "${MON_SCALE[i]}")" "$tag"
+    [ -n "${MON_DESC[i]}" ] && printf '        %b%s%b\n' "$DIM" "${MON_DESC[i]}" "$RESET"
+}
+
+list_monitors() {
+    load_monitors
+    info "Detected monitors:"
+    local i
+    for ((i = 0; i < MON_COUNT; i++)); do
+        print_monitor_line "$i" "$((i + 1))"
+    done
+}
+
+# --- Lua rendering -------------------------------------------------------
+
+render_inline() {
+    local out="hl.monitor({" first=1 k v
+    while [ "$#" -gt 0 ]; do
+        k="$1"; v="$2"; shift 2
+        if [ "$first" -eq 1 ]; then first=0; else out+=", "; fi
+        out+="$k=$v"
+    done
+    out+="})"
+    printf '%s' "$out"
+}
+
+# render_block key1 val1 [key2 val2 ...] -> pretty multi-line "hl.monitor({...})"
+# matching the existing hyprland.lua style (fields padded to align '=').
+render_block() {
+    local k v
+    printf 'hl.monitor({\n'
+    while [ "$#" -gt 0 ]; do
+        k="$1"; v="$2"; shift 2
+        printf '    %-9s= %s,\n' "$k" "$v"
+    done
+    printf '})\n'
+}
+
+# --- Applying & persisting ------------------------------------------------
+
+ensure_monitors_required() {
+    local real_target
+    real_target="$(readlink -f "$HYPR_LUA" 2>/dev/null)"
+    [ -n "$real_target" ] && [ -f "$real_target" ] || return 0
+
+    grep -qF -- 'require("monitors")' "$real_target" && return 0
+
+    if ! grep -qF -- '---- MONITORS ----' "$real_target"; then
+        warn "Note: no 'require(\"monitors\")' found in $HYPR_LUA and no inline MONITORS block to migrate - you may need to add 'require(\"monitors\")' there yourself."
+        return 0
+    fi
+
+    if [ ! -f "$MONITORS_LUA" ]; then
+        if ! awk '
+            BEGIN { start = 0; nextstart = 0 }
+            { lines[NR] = $0 }
+            END {
+                total = NR
+                for (i = 1; i <= total - 2; i++) {
+                    if (lines[i]   == "------------------" &&
+                        lines[i+1] == "---- MONITORS ----" &&
+                        lines[i+2] == "------------------") {
+                        start = i
+                        break
+                    }
+                }
+                if (start == 0) exit 2
+                for (i = start + 3; i <= total - 2; i++) {
+                    if (lines[i]   == "---------------------" &&
+                        lines[i+1] == "---- MY PROGRAMS ----" &&
+                        lines[i+2] == "---------------------") {
+                        nextstart = i
+                        break
+                    }
+                }
+                if (nextstart == 0) exit 2
+                end = nextstart - 1
+                if (lines[end] == "") end--
+                for (i = start + 3; i <= end; i++) print lines[i]
+            }
+        ' "$real_target" > "$MONITORS_LUA" 2>/dev/null; then
+            rm -f "$MONITORS_LUA"
+            warn "Could not extract the existing MONITORS block from $HYPR_LUA - leaving it untouched."
+            return 1
+        fi
+        [ -s "$MONITORS_LUA" ] || rm -f "$MONITORS_LUA"
+    fi
+
+    if [ ! -f "$MONITORS_LUA" ]; then
+        warn "Could not create $MONITORS_LUA - leaving $HYPR_LUA untouched."
+        return 1
+    fi
+
+    local tmp
+    tmp="$(mktemp "$(dirname "$real_target")/.hyprland.lua.XXXXXX")" || {
+        warn "Could not create a temp file next to $real_target - leaving it untouched."
+        return 1
+    }
+
+    if ! awk '
+        { lines[NR] = $0 }
+        END {
+            total = NR
+            start = 0
+            for (i = 1; i <= total - 2; i++) {
+                if (lines[i]   == "------------------" &&
+                    lines[i+1] == "---- MONITORS ----" &&
+                    lines[i+2] == "------------------") {
+                    start = i
+                    break
+                }
+            }
+            if (start == 0) exit 2
+            nextstart = 0
+            for (i = start + 3; i <= total - 2; i++) {
+                if (lines[i]   == "---------------------" &&
+                    lines[i+1] == "---- MY PROGRAMS ----" &&
+                    lines[i+2] == "---------------------") {
+                    nextstart = i
+                    break
+                }
+            }
+            if (nextstart == 0) exit 2
+            end = nextstart - 1
+            if (lines[end] != "") exit 2
+
+            for (i = 1; i < start; i++) print lines[i]
+            print "------------------"
+            print "---- MONITORS ----"
+            print "------------------"
+            print ""
+            print "-- Monitor arrangement lives in monitors.lua (managed by bin/monitor-mode) --"
+            print "-- run that script to detect connected monitors and choose how they are"
+            print "-- arranged, instead of hand-editing this section."
+            print "require(\"monitors\")"
+            for (i = end; i <= total; i++) print lines[i]
+        }
+    ' "$real_target" > "$tmp"; then
+        rm -f "$tmp"
+        warn "hyprland.lua doesn't match the expected MONITORS section format - left it untouched (monitors.lua was still written)."
+        return 1
+    fi
+
+    if ! mv "$tmp" "$real_target"; then
+        rm -f "$tmp"
+        warn "Could not write $real_target - left it untouched (monitors.lua was still written)."
+        return 1
+    fi
+
+    ok "Moved monitor rules out of hyprland.lua into $MONITORS_LUA (required via require(\"monitors\"))."
+    return 0
+}
+
+# Atomically overwrites monitors.lua with the freshly rendered content in
+# $1 (a file containing the full new file body). Always a full overwrite -
+# unlike hyprland.lua, this file has no other content to preserve.
+write_monitors_lua() {
+    local content_file="$1"
+    local dir tmp
+    dir="$(dirname "$MONITORS_LUA")"
+    [ -d "$dir" ] || mkdir -p "$dir" || {
+        warn "Could not create $dir - skipping monitors.lua update (live change is still active)."
+        return 1
+    }
+
+    tmp="$(mktemp "$dir/.monitors.lua.XXXXXX")" || {
+        warn "Could not create a temp file next to $MONITORS_LUA - skipping update."
+        return 1
+    }
+
+    {
+        printf -- '-- Monitor arrangement, managed by the `monitor-mode` script (bin/monitor-mode).\n'
+        printf -- '-- Re-run monitor-mode to detect connected monitors and choose how they are\n'
+        printf -- '-- arranged, instead of hand-editing this file -- it gets fully overwritten\n'
+        printf -- '-- each time monitor-mode is run.\n'
+        printf -- '\n'
+        printf -- '-- See https://wiki.hypr.land/Configuring/Basics/Monitors/\n'
+        cat "$content_file"
+    } > "$tmp"
+
+    if ! mv "$tmp" "$MONITORS_LUA"; then
+        rm -f "$tmp"
+        warn "Could not write $MONITORS_LUA - skipping config file update (live change is still active)."
+        return 1
+    fi
+
+    return 0
+}
+
+# --- Interactive wizard ----------------------------------------------------
+
+main_interactive() {
+    load_monitors
+    (( MON_COUNT > 0 )) || die "No monitors detected." 1
+
+    local -a idx=()
+    local i
+    for ((i = 0; i < MON_COUNT; i++)); do
+        [ "${MON_DISABLED[i]}" = "true" ] && continue
+        idx+=("$i")
+    done
+
+    local n=${#idx[@]}
+
+    if (( n <= 1 )); then
+        if (( n == 1 )); then
+            info "Only one active monitor detected (${MON_NAME[${idx[0]}]}) - nothing to arrange."
+        else
+            info "No active monitors detected - nothing to arrange."
+        fi
+        exit 0
+    fi
+
+    echo ""
+    info "Connected monitors:"
+    echo ""
+    local k
+    for ((k = 0; k < n; k++)); do
+        print_monitor_line "${idx[k]}" "$((k + 1))"
+    done
+
+    echo ""
+    read -r -p "$(printf '%bWhich monitor is your reference/main screen?%b (1-%d): ' "$CYAN$BOLD" "$RESET" "$n")" refchoice
+
+    if ! [[ "$refchoice" =~ ^[0-9]+$ ]] || (( refchoice < 1 || refchoice > n )); then
+        die "Invalid choice." 1
+    fi
+
+    local ref_i=${idx[$((refchoice - 1))]}
+    local ref_name="${MON_NAME[ref_i]}"
+    local ref_x="${MON_X[ref_i]}" ref_y="${MON_Y[ref_i]}"
+    local ref_w="${MON_W[ref_i]}" ref_h="${MON_H[ref_i]}"
+    local ref_scale_raw="${MON_SCALE[ref_i]}"
+    local ref_scale; ref_scale="$(clean_num "$ref_scale_raw")"
+
+    echo ""
+    ok "Reference monitor: $ref_name"
+
+    # Ordered lists describing what to apply: parallel arrays, one entry per
+    # hl.monitor({...}) call that will be both eval'd and persisted.
+    local -a A_OUTPUT=() A_MODE=() A_POSITION=() A_SCALE=() A_MIRROR=() A_DISABLED=()
+
+    # The reference monitor itself keeps its current position/mode/scale so
+    # every other monitor's placement (computed relative to it) stays correct.
+    A_OUTPUT+=("$ref_name"); A_MODE+=("preferred"); A_POSITION+=("${ref_x}x${ref_y}")
+    A_SCALE+=("$ref_scale"); A_MIRROR+=(""); A_DISABLED+=("")
+
+    # Logical (post-scale) rectangles of every monitor placed so far, used to
+    # warn if two non-mirrored monitors end up landing on the same spot (e.g.
+    # the user picks "right of reference" for two different external
+    # monitors in a 3-monitor dock) - each is placed only relative to the
+    # reference, so nothing else catches that kind of collision.
+    local -a PLACED_NAME=() PLACED_X=() PLACED_Y=() PLACED_W=() PLACED_H=()
+    local ref_lw ref_lh
+    ref_lw="$(awk -v w="$ref_w" -v sc="$ref_scale" 'BEGIN { printf "%g", w / sc }')"
+    ref_lh="$(awk -v h="$ref_h" -v sc="$ref_scale" 'BEGIN { printf "%g", h / sc }')"
+    PLACED_NAME+=("$ref_name"); PLACED_X+=("$ref_x"); PLACED_Y+=("$ref_y")
+    PLACED_W+=("$ref_lw"); PLACED_H+=("$ref_lh")
+
+    for ((k = 0; k < n; k++)); do
+        i=${idx[k]}
+        [ "$i" -eq "$ref_i" ] && continue
+
+        local name="${MON_NAME[i]}"
+        local w="${MON_W[i]}" h="${MON_H[i]}"
+        local scale; scale="$(clean_num "${MON_SCALE[i]}")"
+
+        echo ""
+        printf '%bHow should %s be arranged relative to %s?%b\n' "$CYAN$BOLD" "$name" "$ref_name" "$RESET"
+        printf '  %b1%b  Mirror %s\n'          "$GREEN$BOLD" "$RESET" "$ref_name"
+        printf '  %b2%b  Place to the left of %s\n'  "$GREEN$BOLD" "$RESET" "$ref_name"
+        printf '  %b3%b  Place to the right of %s\n' "$GREEN$BOLD" "$RESET" "$ref_name"
+        printf '  %b4%b  Place above %s\n'      "$GREEN$BOLD" "$RESET" "$ref_name"
+        printf '  %b5%b  Place below %s\n'      "$GREEN$BOLD" "$RESET" "$ref_name"
+        read -r -p "$(printf '%bChoice%b (1-5): ' "$CYAN$BOLD" "$RESET")" pchoice
+
+        if ! [[ "$pchoice" =~ ^[0-9]+$ ]] || (( pchoice < 1 || pchoice > 5 )); then
+            die "Invalid choice for $name." 1
+        fi
+
+        local new_x="" new_y=""
+        case "$pchoice" in
+        1)
+            A_OUTPUT+=("$name"); A_MODE+=(""); A_POSITION+=(""); A_SCALE+=("")
+            A_MIRROR+=("$ref_name"); A_DISABLED+=("")
+            ;;
+        2) # left of reference: this monitor's right edge meets ref's left edge
+            new_x="$(awk -v rx="$ref_x" -v w="$w" -v sc="$scale" 'BEGIN { printf "%d", rx - (w / sc) }')"
+            new_y="$ref_y"
+            A_OUTPUT+=("$name"); A_MODE+=("preferred"); A_POSITION+=("${new_x}x${new_y}")
+            A_SCALE+=("$scale"); A_MIRROR+=(""); A_DISABLED+=("")
+            ;;
+        3) # right of reference: this monitor's left edge meets ref's right edge
+            new_x="$(awk -v rx="$ref_x" -v rw="$ref_w" -v rsc="$ref_scale" 'BEGIN { printf "%d", rx + (rw / rsc) }')"
+            new_y="$ref_y"
+            A_OUTPUT+=("$name"); A_MODE+=("preferred"); A_POSITION+=("${new_x}x${new_y}")
+            A_SCALE+=("$scale"); A_MIRROR+=(""); A_DISABLED+=("")
+            ;;
+        4) # above reference: this monitor's bottom edge meets ref's top edge
+            new_x="$ref_x"
+            new_y="$(awk -v ry="$ref_y" -v h="$h" -v sc="$scale" 'BEGIN { printf "%d", ry - (h / sc) }')"
+            A_OUTPUT+=("$name"); A_MODE+=("preferred"); A_POSITION+=("${new_x}x${new_y}")
+            A_SCALE+=("$scale"); A_MIRROR+=(""); A_DISABLED+=("")
+            ;;
+        5) # below reference: this monitor's top edge meets ref's bottom edge
+            new_x="$ref_x"
+            new_y="$(awk -v ry="$ref_y" -v rh="$ref_h" -v rsc="$ref_scale" 'BEGIN { printf "%d", ry + (rh / rsc) }')"
+            A_OUTPUT+=("$name"); A_MODE+=("preferred"); A_POSITION+=("${new_x}x${new_y}")
+            A_SCALE+=("$scale"); A_MIRROR+=(""); A_DISABLED+=("")
+            ;;
+        esac
+
+        # Mirroring intentionally coincides with the reference's position, so
+        # it's exempt from the overlap check; every other placement gets
+        # checked against - and then recorded alongside - every monitor
+        # already placed, so a second monitor sent the same direction (e.g.
+        # two externals both "right of reference") is flagged instead of
+        # silently landing on top of the first.
+        if [ "$pchoice" != 1 ]; then
+            local new_lw new_lh p overlap_with=""
+            new_lw="$(awk -v w="$w" -v sc="$scale" 'BEGIN { printf "%g", w / sc }')"
+            new_lh="$(awk -v h="$h" -v sc="$scale" 'BEGIN { printf "%g", h / sc }')"
+            for ((p = 0; p < ${#PLACED_NAME[@]}; p++)); do
+                if [ "$(rects_overlap "$new_x" "$new_y" "$new_lw" "$new_lh" \
+                    "${PLACED_X[p]}" "${PLACED_Y[p]}" "${PLACED_W[p]}" "${PLACED_H[p]}")" = "1" ]; then
+                    overlap_with="${overlap_with:+$overlap_with, }${PLACED_NAME[p]}"
+                fi
+            done
+            if [ -n "$overlap_with" ]; then
+                warn "Warning: $name at position ${new_x},${new_y} overlaps $overlap_with - the two will render on top of each other."
+            fi
+            PLACED_NAME+=("$name"); PLACED_X+=("$new_x"); PLACED_Y+=("$new_y")
+            PLACED_W+=("$new_lw"); PLACED_H+=("$new_lh")
+        fi
+    done
+
+    # Preserve any currently-disabled monitor's disabled state verbatim, so
+    # we never silently re-enable a monitor the user turned off on purpose.
+    for ((i = 0; i < MON_COUNT; i++)); do
+        if [ "${MON_DISABLED[i]}" = "true" ]; then
+            A_OUTPUT+=("${MON_NAME[i]}"); A_MODE+=(""); A_POSITION+=(""); A_SCALE+=("")
+            A_MIRROR+=(""); A_DISABLED+=("true")
+        fi
+    done
+
+    # Trailing catch-all for any monitor not covered above (e.g. one plugged
+    # in later).
+    A_OUTPUT+=(""); A_MODE+=("preferred"); A_POSITION+=("auto"); A_SCALE+=("auto")
+    A_MIRROR+=(""); A_DISABLED+=("")
+
+    # --- Build the single-line eval expression and the pretty file content ---
+
+    local -a eval_calls=()
+    local content_file
+    content_file="$(mktemp)" || die "Could not create a temp file." 1
+    trap '[ -n "${content_file:-}" ] && rm -f "$content_file"' RETURN
+
+    local m out_q mode_q pos_q mir_q scale_q call
+    for ((m = 0; m < ${#A_OUTPUT[@]}; m++)); do
+        out_q="\"$(lua_esc "${A_OUTPUT[m]}")\""
+
+        if [ -n "${A_MIRROR[m]}" ]; then
+            mir_q="\"$(lua_esc "${A_MIRROR[m]}")\""
+            call="$(render_inline output "$out_q" mirror "$mir_q")"
+            { render_block output "$out_q" mirror "$mir_q"; printf '\n'; } >>"$content_file"
+        elif [ -n "${A_DISABLED[m]}" ]; then
+            call="$(render_inline output "$out_q" disabled true)"
+            { render_block output "$out_q" disabled true; printf '\n'; } >>"$content_file"
+        else
+            mode_q="\"$(lua_esc "${A_MODE[m]}")\""
+            pos_q="\"$(lua_esc "${A_POSITION[m]}")\""
+            # scale is either a bare number (e.g. 1.25) or the literal string
+            # "auto" - only the latter needs Lua quoting.
+            if [ "${A_SCALE[m]}" = "auto" ]; then
+                scale_q="\"auto\""
+            else
+                scale_q="${A_SCALE[m]}"
+            fi
+            call="$(render_inline output "$out_q" mode "$mode_q" position "$pos_q" scale "$scale_q")"
+            { render_block output "$out_q" mode "$mode_q" position "$pos_q" scale "$scale_q"; printf '\n'; } >>"$content_file"
+        fi
+        eval_calls+=("$call")
+    done
+
+    # Drop the trailing blank line after the last block.
+    sed -i -e '${/^$/d}' "$content_file"
+
+    local eval_expr=""
+    for m in "${!eval_calls[@]}"; do
+        [ "$m" -gt 0 ] && eval_expr+="; "
+        eval_expr+="${eval_calls[m]}"
+    done
+
+    echo ""
+    info "Applying layout live..."
+    local eval_result
+    eval_result="$(hyprctl eval "$eval_expr" 2>&1)"
+
+    if [[ "$eval_result" == error:* ]]; then
+        die "hyprctl eval failed: $eval_result" 1
+    fi
+
+    ok "Layout applied."
+
+    ensure_monitors_required
+    if write_monitors_lua "$content_file"; then
+        ok "Saved to $MONITORS_LUA - this layout will survive a reload or re-login."
+    fi
+}
+
+# --- Entry point -----------------------------------------------------------
+
+case "${1:-}" in
 --help | -h)
-    echo ""
-    echo "Usage: monitorMode [mirror|extend]"
-    echo ""
-    echo "mirror: mirrors your main screen"
-    echo "extend: extends the main screen to the right"
+    usage
+    exit 0
+    ;;
+--list | -l)
+    require_hyprctl
+    list_monitors
+    exit 0
+    ;;
+"")
+    require_hyprctl
+    main_interactive
     ;;
 *)
-    echo "Unknown option. Use --help or -h for usage."
+    printf '%bUnknown option: %s%b\n' "$RED" "$1" "$RESET" >&2
+    usage
+    exit 1
     ;;
 esac
