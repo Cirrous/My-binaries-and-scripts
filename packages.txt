@@ -37,6 +37,10 @@ zig                          # a general-purpose programming language and toolch
 python-pip                   # Python package manager
 jq                           # CLI for working with json format
 
+# Kernel modules & driver building
+linux-headers                # Headers and scripts for building modules for the Linux kernel
+dkms                         # Dynamic Kernel Module Support Framework
+
 # Containers
 docker                       # Pack, ship and run any application as a lightweight container
 lazydocker                   # A simple terminal UI for docker and docker-compose, written in Go with the gocui library.

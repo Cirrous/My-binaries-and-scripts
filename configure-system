@@ -1,0 +1,14 @@
+#!/bin/bash
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/bin/colors.sh"
+
+printf '\n%b==>%b Rebuilding DKMS modules\n\n' "$CYAN$BOLD" "$RESET"
+sudo dkms autoinstall
+
+printf '\n%b==>%b Enabling DisplayLink service\n\n' "$CYAN$BOLD" "$RESET"
+sudo systemctl enable --now displaylink.service
+
+printf '\n%b==>%b System configuration applied\n\n' "$GREEN$BOLD" "$RESET"

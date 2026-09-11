@@ -18,7 +18,11 @@ Run with no arguments to interactively arrange your currently connected
 monitors:
   - pick which connected monitor is the reference/main screen
   - for every other monitor, choose to mirror the reference, or place it
-    to its left, right, above, or below it
+    to its left, right, above, or below it - once more than the reference
+    is placed, you'll also be asked which already-placed monitor a new one
+    is positioned relative to, so e.g. a third monitor can sit beside one
+    that was itself stacked above the reference, instead of always being
+    placed relative to the reference
 
 The chosen layout is applied immediately and live (via 'hyprctl eval'),
 and on success is also written into:
@@ -478,14 +482,38 @@ main_interactive() {
         local name="${MON_NAME[i]}"
         local w="${MON_W[i]}" h="${MON_H[i]}"
         local scale; scale="$(clean_num "${MON_SCALE[i]}")"
+        local p
+
+        # Which already-placed monitor to position relative to. With only the
+        # reference placed so far there's just one choice, so skip straight
+        # to it; once a second monitor has been positioned (e.g. one stacked
+        # above the reference), ask - this is what lets a third monitor sit
+        # next to that one instead of always next to the reference, enabling
+        # e.g. an L-shaped/vertical layout.
+        local anchor_c=0
+        if (( ${#PLACED_NAME[@]} > 1 )); then
+            echo ""
+            printf '%bPosition %s relative to which already-placed monitor?%b\n' "$CYAN$BOLD" "$name" "$RESET"
+            for ((p = 0; p < ${#PLACED_NAME[@]}; p++)); do
+                printf '  %b%d%b  %s\n' "$GREEN$BOLD" "$((p + 1))" "$RESET" "${PLACED_NAME[p]}"
+            done
+            read -r -p "$(printf '%bChoice%b (1-%d): ' "$CYAN$BOLD" "$RESET" "${#PLACED_NAME[@]}")" anchorchoice
+            if ! [[ "$anchorchoice" =~ ^[0-9]+$ ]] || (( anchorchoice < 1 || anchorchoice > ${#PLACED_NAME[@]} )); then
+                die "Invalid choice for $name." 1
+            fi
+            anchor_c=$((anchorchoice - 1))
+        fi
+        local anchor_name="${PLACED_NAME[anchor_c]}"
+        local anchor_x="${PLACED_X[anchor_c]}" anchor_y="${PLACED_Y[anchor_c]}"
+        local anchor_lw="${PLACED_W[anchor_c]}" anchor_lh="${PLACED_H[anchor_c]}"
 
         echo ""
-        printf '%bHow should %s be arranged relative to %s?%b\n' "$CYAN$BOLD" "$name" "$ref_name" "$RESET"
+        printf '%bHow should %s be arranged relative to %s?%b\n' "$CYAN$BOLD" "$name" "$anchor_name" "$RESET"
         printf '  %b1%b  Mirror %s\n'          "$GREEN$BOLD" "$RESET" "$ref_name"
-        printf '  %b2%b  Place to the left of %s\n'  "$GREEN$BOLD" "$RESET" "$ref_name"
-        printf '  %b3%b  Place to the right of %s\n' "$GREEN$BOLD" "$RESET" "$ref_name"
-        printf '  %b4%b  Place above %s\n'      "$GREEN$BOLD" "$RESET" "$ref_name"
-        printf '  %b5%b  Place below %s\n'      "$GREEN$BOLD" "$RESET" "$ref_name"
+        printf '  %b2%b  Place to the left of %s\n'  "$GREEN$BOLD" "$RESET" "$anchor_name"
+        printf '  %b3%b  Place to the right of %s\n' "$GREEN$BOLD" "$RESET" "$anchor_name"
+        printf '  %b4%b  Place above %s\n'      "$GREEN$BOLD" "$RESET" "$anchor_name"
+        printf '  %b5%b  Place below %s\n'      "$GREEN$BOLD" "$RESET" "$anchor_name"
         read -r -p "$(printf '%bChoice%b (1-5): ' "$CYAN$BOLD" "$RESET")" pchoice
 
         if ! [[ "$pchoice" =~ ^[0-9]+$ ]] || (( pchoice < 1 || pchoice > 5 )); then
@@ -498,27 +526,27 @@ main_interactive() {
             A_OUTPUT+=("$name"); A_MODE+=(""); A_POSITION+=(""); A_SCALE+=("")
             A_MIRROR+=("$ref_name"); A_DISABLED+=("")
             ;;
-        2) # left of reference: this monitor's right edge meets ref's left edge
-            new_x="$(awk -v rx="$ref_x" -v w="$w" -v sc="$scale" 'BEGIN { printf "%d", rx - (w / sc) }')"
-            new_y="$ref_y"
+        2) # left of anchor: this monitor's right edge meets anchor's left edge
+            new_x="$(awk -v ax="$anchor_x" -v w="$w" -v sc="$scale" 'BEGIN { printf "%d", ax - (w / sc) }')"
+            new_y="$anchor_y"
             A_OUTPUT+=("$name"); A_MODE+=("preferred"); A_POSITION+=("${new_x}x${new_y}")
             A_SCALE+=("$scale"); A_MIRROR+=(""); A_DISABLED+=("")
             ;;
-        3) # right of reference: this monitor's left edge meets ref's right edge
-            new_x="$(awk -v rx="$ref_x" -v rw="$ref_w" -v rsc="$ref_scale" 'BEGIN { printf "%d", rx + (rw / rsc) }')"
-            new_y="$ref_y"
+        3) # right of anchor: this monitor's left edge meets anchor's right edge
+            new_x="$(awk -v ax="$anchor_x" -v alw="$anchor_lw" 'BEGIN { printf "%d", ax + alw }')"
+            new_y="$anchor_y"
             A_OUTPUT+=("$name"); A_MODE+=("preferred"); A_POSITION+=("${new_x}x${new_y}")
             A_SCALE+=("$scale"); A_MIRROR+=(""); A_DISABLED+=("")
             ;;
-        4) # above reference: this monitor's bottom edge meets ref's top edge
-            new_x="$ref_x"
-            new_y="$(awk -v ry="$ref_y" -v h="$h" -v sc="$scale" 'BEGIN { printf "%d", ry - (h / sc) }')"
+        4) # above anchor: this monitor's bottom edge meets anchor's top edge
+            new_x="$anchor_x"
+            new_y="$(awk -v ay="$anchor_y" -v h="$h" -v sc="$scale" 'BEGIN { printf "%d", ay - (h / sc) }')"
             A_OUTPUT+=("$name"); A_MODE+=("preferred"); A_POSITION+=("${new_x}x${new_y}")
             A_SCALE+=("$scale"); A_MIRROR+=(""); A_DISABLED+=("")
             ;;
-        5) # below reference: this monitor's top edge meets ref's bottom edge
-            new_x="$ref_x"
-            new_y="$(awk -v ry="$ref_y" -v rh="$ref_h" -v rsc="$ref_scale" 'BEGIN { printf "%d", ry + (rh / rsc) }')"
+        5) # below anchor: this monitor's top edge meets anchor's bottom edge
+            new_x="$anchor_x"
+            new_y="$(awk -v ay="$anchor_y" -v alh="$anchor_lh" 'BEGIN { printf "%d", ay + alh }')"
             A_OUTPUT+=("$name"); A_MODE+=("preferred"); A_POSITION+=("${new_x}x${new_y}")
             A_SCALE+=("$scale"); A_MIRROR+=(""); A_DISABLED+=("")
             ;;
@@ -527,11 +555,11 @@ main_interactive() {
         # Mirroring intentionally coincides with the reference's position, so
         # it's exempt from the overlap check; every other placement gets
         # checked against - and then recorded alongside - every monitor
-        # already placed, so a second monitor sent the same direction (e.g.
-        # two externals both "right of reference") is flagged instead of
-        # silently landing on top of the first.
+        # already placed, so a second monitor sent the same direction off the
+        # same anchor is flagged instead of silently landing on top of the
+        # first.
         if [ "$pchoice" != 1 ]; then
-            local new_lw new_lh p overlap_with=""
+            local new_lw new_lh overlap_with=""
             new_lw="$(awk -v w="$w" -v sc="$scale" 'BEGIN { printf "%g", w / sc }')"
             new_lh="$(awk -v h="$h" -v sc="$scale" 'BEGIN { printf "%g", h / sc }')"
             for ((p = 0; p < ${#PLACED_NAME[@]}; p++)); do

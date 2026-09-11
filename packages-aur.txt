@@ -17,3 +17,7 @@ localsend            # An open source cross-platform alternative to AirDrop
 
 # Misc tools
 pokemon-colorscripts-git  # Print Pokemon ASCII art in the terminal
+
+# DisplayLink
+evdi                      # Extensible Virtual Display Interface
+displaylink               # DisplayLink driver
