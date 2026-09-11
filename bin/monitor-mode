@@ -227,6 +227,103 @@ list_monitors() {
     for ((i = 0; i < MON_COUNT; i++)); do
         print_monitor_line "$i" "$((i + 1))"
     done
+
+    # Feed the enabled monitors' logical (post-scale) rectangles into
+    # draw_layout for a quick ASCII overview alongside the detailed list.
+    local -a PLACED_LABEL=() PLACED_X=() PLACED_Y=() PLACED_W=() PLACED_H=()
+    local lw lh label
+    for ((i = 0; i < MON_COUNT; i++)); do
+        [ "${MON_DISABLED[i]}" = "true" ] && continue
+        lw="$(awk -v w="${MON_W[i]}" -v sc="${MON_SCALE[i]}" 'BEGIN { printf "%g", w / sc }')"
+        lh="$(awk -v h="${MON_H[i]}" -v sc="${MON_SCALE[i]}" 'BEGIN { printf "%g", h / sc }')"
+        label="${MON_NAME[i]}"
+        [ -n "${MON_MIRROR[i]}" ] && label="$label (mirrors ${MON_MIRROR[i]})"
+        PLACED_LABEL+=("$label"); PLACED_X+=("${MON_X[i]}"); PLACED_Y+=("${MON_Y[i]}")
+        PLACED_W+=("$lw"); PLACED_H+=("$lh")
+    done
+
+    if [ "${#PLACED_LABEL[@]}" -gt 0 ]; then
+        echo ""
+        info "Layout:"
+        draw_layout
+    fi
+}
+
+# --- ASCII layout preview -------------------------------------------------
+
+# draw_layout - renders the monitors currently recorded in PLACED_LABEL /
+# PLACED_X / PLACED_Y / PLACED_W / PLACED_H (logical, post-scale rectangles)
+# as a scaled-down ASCII box diagram, so the arrangement being built up
+# interactively can be eyeballed before it's applied.
+draw_layout() {
+    local n=${#PLACED_LABEL[@]}
+    (( n > 0 )) || return 0
+
+    local i
+    for ((i = 0; i < n; i++)); do
+        printf '%s\t%s\t%s\t%s\t%s\n' "${PLACED_LABEL[i]}" "${PLACED_X[i]}" "${PLACED_Y[i]}" "${PLACED_W[i]}" "${PLACED_H[i]}"
+    done | awk -F'\t' '
+    {
+        n++
+        name[n] = $1; x[n] = $2 + 0; y[n] = $3 + 0; w[n] = $4 + 0; h[n] = $5 + 0
+        x2 = x[n] + w[n]; y2 = y[n] + h[n]
+        if (n == 1) { minx = x[n]; miny = y[n]; maxx = x2; maxy = y2 }
+        else {
+            if (x[n] < minx) minx = x[n]
+            if (y[n] < miny) miny = y[n]
+            if (x2 > maxx) maxx = x2
+            if (y2 > maxy) maxy = y2
+        }
+    }
+    END {
+        totalw = maxx - minx; if (totalw <= 0) totalw = 1
+        totalh = maxy - miny; if (totalh <= 0) totalh = 1
+
+        max_cols = 64; max_rows = 16
+        # terminal character cells are roughly twice as tall as wide, so the
+        # vertical scale is halved to keep boxes looking proportionally right
+        scale_x = max_cols / totalw
+        scale_y = (max_rows * 2) / totalh
+        scale = (scale_x < scale_y) ? scale_x : scale_y
+
+        cols = int(totalw * scale + 0.5) + 2
+        rows = int(totalh * scale / 2 + 0.5) + 2
+        if (cols < 5) cols = 5
+        if (rows < 3) rows = 3
+
+        for (r = 0; r < rows; r++)
+            for (c = 0; c < cols; c++)
+                grid[r, c] = " "
+
+        for (i = 1; i <= n; i++) {
+            c1 = int((x[i] - minx) * scale)
+            r1 = int((y[i] - miny) * scale / 2)
+            cw = int(w[i] * scale); if (cw < 4) cw = 4
+            ch = int(h[i] * scale / 2); if (ch < 2) ch = 2
+            c2 = c1 + cw; if (c2 >= cols) c2 = cols - 1
+            r2 = r1 + ch; if (r2 >= rows) r2 = rows - 1
+
+            for (c = c1; c <= c2; c++) { grid[r1, c] = "-"; grid[r2, c] = "-" }
+            for (r = r1; r <= r2; r++) { grid[r, c1] = "|"; grid[r, c2] = "|" }
+            grid[r1, c1] = "+"; grid[r1, c2] = "+"; grid[r2, c1] = "+"; grid[r2, c2] = "+"
+
+            label = name[i]
+            avail = c2 - c1 - 1
+            if (avail > 0) {
+                if (length(label) > avail) label = substr(label, 1, avail)
+                lc = c1 + 1 + int((avail - length(label)) / 2)
+                lr = int((r1 + r2) / 2)
+                for (k = 1; k <= length(label); k++)
+                    grid[lr, lc + k - 1] = substr(label, k, 1)
+            }
+        }
+
+        for (r = 0; r < rows; r++) {
+            line = ""
+            for (c = 0; c < cols; c++) line = line grid[r, c]
+            print line
+        }
+    }'
 }
 
 # --- Lua rendering -------------------------------------------------------
@@ -475,6 +572,16 @@ main_interactive() {
     PLACED_NAME+=("$ref_name"); PLACED_X+=("$ref_x"); PLACED_Y+=("$ref_y")
     PLACED_W+=("$ref_lw"); PLACED_H+=("$ref_lh")
 
+    # Labels shown in the ASCII layout preview - normally the same as
+    # PLACED_NAME, except the reference's label grows a "+ X (mirror)" suffix
+    # for every monitor that ends up mirroring it (which shares its rectangle
+    # instead of getting one of its own).
+    local -a PLACED_LABEL=("$ref_name")
+
+    echo ""
+    info "Current layout:"
+    draw_layout
+
     for ((k = 0; k < n; k++)); do
         i=${idx[k]}
         [ "$i" -eq "$ref_i" ] && continue
@@ -525,6 +632,7 @@ main_interactive() {
         1)
             A_OUTPUT+=("$name"); A_MODE+=(""); A_POSITION+=(""); A_SCALE+=("")
             A_MIRROR+=("$ref_name"); A_DISABLED+=("")
+            PLACED_LABEL[0]="${PLACED_LABEL[0]} + $name (mirror)"
             ;;
         2) # left of anchor: this monitor's right edge meets anchor's left edge
             new_x="$(awk -v ax="$anchor_x" -v w="$w" -v sc="$scale" 'BEGIN { printf "%d", ax - (w / sc) }')"
@@ -572,8 +680,12 @@ main_interactive() {
                 warn "Warning: $name at position ${new_x},${new_y} overlaps $overlap_with - the two will render on top of each other."
             fi
             PLACED_NAME+=("$name"); PLACED_X+=("$new_x"); PLACED_Y+=("$new_y")
-            PLACED_W+=("$new_lw"); PLACED_H+=("$new_lh")
+            PLACED_W+=("$new_lw"); PLACED_H+=("$new_lh"); PLACED_LABEL+=("$name")
         fi
+
+        echo ""
+        info "Current layout:"
+        draw_layout
     done
 
     # Preserve any currently-disabled monitor's disabled state verbatim, so
