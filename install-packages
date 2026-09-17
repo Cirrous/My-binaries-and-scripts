@@ -29,7 +29,7 @@ fi
 
 if [ "${#official_packages[@]}" -gt 0 ]; then
     printf '\n%b==>%b Installing %b%d%b official package(s)\n\n' "$CYAN$BOLD" "$RESET" "$BOLD" "${#official_packages[@]}" "$RESET"
-    sudo pacman -S --needed "${official_packages[@]}"
+    sudo pacman -Syu --needed "${official_packages[@]}"
 else
     printf '\n%b!%b No official packages listed in %s\n' "$YELLOW$BOLD" "$RESET" "$OFFICIAL_LIST"
 fi
