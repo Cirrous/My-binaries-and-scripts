@@ -88,5 +88,22 @@ fi
 
 mkdir -p "$FOLDER"
 
+ARCHIVE="$FOLDER/.downloaded_songs.txt"
+NOT_DOWNLOADED="$FOLDER/not_downloaded.txt"
+
 echo "Starting download to: $FOLDER"
-yt-dlp -f bestaudio --extract-audio --audio-format mp3 --audio-quality 0 --yes-playlist --download-archive "$FOLDER/.downloaded_songs.txt" -P "$FOLDER" -o '%(title)s.%(ext)s' "$URL"
+yt-dlp -f bestaudio --extract-audio --audio-format mp3 --audio-quality 0 --yes-playlist --download-archive "$ARCHIVE" -P "$FOLDER" -o '%(title)s.%(ext)s' "$URL"
+
+# Every playlist entry missing from the archive failed to download
+echo "Checking for songs that could not be downloaded..."
+yt-dlp --flat-playlist --print "%(id)s %(title)s" "$URL" 2>/dev/null |
+  while read -r id title; do
+    grep -qxF "youtube $id" "$ARCHIVE" 2>/dev/null || echo "$title (https://music.youtube.com/watch?v=$id)"
+  done >"$NOT_DOWNLOADED"
+
+if [ -s "$NOT_DOWNLOADED" ]; then
+  echo "$(wc -l <"$NOT_DOWNLOADED") song(s) could not be downloaded, see: $NOT_DOWNLOADED"
+else
+  rm -f "$NOT_DOWNLOADED"
+  echo "All songs downloaded successfully."
+fi
